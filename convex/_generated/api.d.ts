@@ -8,7 +8,17 @@
  * @module
  */
 
-import type * as myFunctions from "../myFunctions.js";
+import type * as billing from "../billing.js";
+import type * as bookings from "../bookings.js";
+import type * as clients from "../clients.js";
+import type * as dashboard from "../dashboard.js";
+import type * as inquiries from "../inquiries.js";
+import type * as lib_activity from "../lib/activity.js";
+import type * as lib_auth from "../lib/auth.js";
+import type * as lib_billing from "../lib/billing.js";
+import type * as settings from "../settings.js";
+import type * as tasks from "../tasks.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  myFunctions: typeof myFunctions;
+  billing: typeof billing;
+  bookings: typeof bookings;
+  clients: typeof clients;
+  dashboard: typeof dashboard;
+  inquiries: typeof inquiries;
+  "lib/activity": typeof lib_activity;
+  "lib/auth": typeof lib_auth;
+  "lib/billing": typeof lib_billing;
+  settings: typeof settings;
+  tasks: typeof tasks;
+  users: typeof users;
 }>;
 
 /**

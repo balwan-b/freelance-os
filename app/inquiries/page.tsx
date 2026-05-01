@@ -1,0 +1,152 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { DashboardLayout } from '@/components/dashboard-layout'
+import { PageHeader } from '@/components/page-header'
+import { PipelineColumn } from '@/components/pipeline-column'
+import { InquiryDrawer } from '@/components/inquiry-drawer'
+import { Inquiry } from '@/components/inquiry-card'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { InquiryFormDialog } from '@/components/inquiry-form-dialog'
+import { BookingModal } from '@/components/booking-modal'
+import { useCurrentUser } from '@/hooks/use-current-user'
+
+type InquiryStage = 'new' | 'contacted' | 'qualified' | 'rejected'
+
+const stageColor: Record<InquiryStage, 'blue' | 'purple' | 'amber' | 'slate'> = {
+  new: 'blue',
+  contacted: 'purple',
+  qualified: 'amber',
+  rejected: 'slate',
+}
+
+const stageTitle: Record<InquiryStage, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  qualified: 'Qualified',
+  rejected: 'Rejected',
+}
+
+function toInquiry(row: any): Inquiry {
+  return {
+    id: row._id,
+    name: row.name,
+    service: row.service,
+    date: new Date(row.receivedOn),
+    tags: row.tags,
+    budget: row.budget,
+    email: row.email,
+    phone: row.phone,
+    notes: row.notes,
+  }
+}
+
+export default function InquiriesPage() {
+  const { currentUser, isLoading } = useCurrentUser()
+  const inquiryGroups = useQuery(api.inquiries.list, currentUser ? {} : 'skip')
+  const createInquiry = useMutation(api.inquiries.create)
+  const updateStage = useMutation(api.inquiries.updateStage)
+  const convertToClient = useMutation(api.inquiries.convertToClient)
+  const createBooking = useMutation(api.bookings.create)
+
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
+  const [selectedStage, setSelectedStage] = useState<InquiryStage>('new')
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [bookingOpen, setBookingOpen] = useState(false)
+
+  const columns = useMemo(() => {
+    if (!inquiryGroups) return []
+    return (['new', 'contacted', 'qualified', 'rejected'] as InquiryStage[]).map((stage) => ({
+      stage,
+      inquiries: (inquiryGroups[stage] ?? []).map(toInquiry),
+    }))
+  }, [inquiryGroups])
+
+  const handleCardClick = (stage: InquiryStage, inquiry: Inquiry) => {
+    setSelectedInquiry(inquiry)
+    setSelectedStage(stage)
+    setDrawerOpen(true)
+  }
+
+  if (isLoading || currentUser === null || inquiryGroups === undefined) {
+    return (
+      <DashboardLayout>
+        <div className="py-20 text-center text-muted-foreground">Loading inquiries...</div>
+      </DashboardLayout>
+    )
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-8">
+        <PageHeader
+          title="Inquiries Pipeline"
+          description="Manage and track all incoming project inquiries"
+          action={
+            <Button size="sm" className="gap-2 hidden sm:flex" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4" />
+              New Inquiry
+            </Button>
+          }
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[calc(100vh-240px)]">
+          {columns.map((column) => (
+            <PipelineColumn
+              key={column.stage}
+              title={stageTitle[column.stage]}
+              count={column.inquiries.length}
+              inquiries={column.inquiries}
+              onCardClick={(inquiry) => handleCardClick(column.stage, inquiry)}
+              color={stageColor[column.stage]}
+            />
+          ))}
+        </div>
+      </div>
+
+      <InquiryDrawer
+        inquiry={selectedInquiry}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        stage={selectedStage}
+        onStageChange={async (stage) => {
+          if (!selectedInquiry) return
+          setSelectedStage(stage)
+          await updateStage({ inquiryId: selectedInquiry.id as any, stage })
+        }}
+        onConvert={async () => {
+          if (!selectedInquiry) return
+          await convertToClient({ inquiryId: selectedInquiry.id as any })
+          setDrawerOpen(false)
+        }}
+        onSchedule={() => setBookingOpen(true)}
+      />
+
+      <InquiryFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={(values) => createInquiry(values)}
+      />
+
+      <BookingModal
+        isOpen={bookingOpen}
+        onClose={() => setBookingOpen(false)}
+        defaultClientName={selectedInquiry?.name}
+        onSubmit={(values) =>
+          createBooking({
+            inquiryId: selectedInquiry?.id as any,
+            clientId: values.clientId as any,
+            clientName: values.clientName,
+            date: values.date,
+            startTime: values.startTime,
+            type: values.type,
+          })
+        }
+      />
+    </DashboardLayout>
+  )
+}

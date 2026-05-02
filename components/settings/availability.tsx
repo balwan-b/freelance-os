@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -12,6 +12,7 @@ import { api } from '@/convex/_generated/api'
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 interface AvailabilitySettingsProps {
+  timezone?: string
   availability?: Array<{
     dayOfWeek: number
     enabled: boolean
@@ -20,22 +21,21 @@ interface AvailabilitySettingsProps {
   }>
 }
 
-export function AvailabilitySettings({ availability = [] }: AvailabilitySettingsProps) {
+export function AvailabilitySettings({ timezone, availability = [] }: AvailabilitySettingsProps) {
   const updateAvailability = useMutation(api.settings.updateAvailability)
-  const [rules, setRules] = useState(
-    DAYS.map((_, index) => ({
-      dayOfWeek: (index + 1) % 7,
-      enabled: index < 5,
-      startTime: '09:00',
-      endTime: '17:00',
-    })),
+  const initialRules = useMemo(
+    () =>
+      availability.length
+        ? [...availability].sort((a, b) => ((a.dayOfWeek + 6) % 7) - ((b.dayOfWeek + 6) % 7))
+        : DAYS.map((_, index) => ({
+            dayOfWeek: (index + 1) % 7,
+            enabled: index < 5,
+            startTime: '09:00',
+            endTime: '17:00',
+          })),
+    [availability],
   )
-
-  useEffect(() => {
-    if (!availability.length) return
-    const ordered = [...availability].sort((a, b) => ((a.dayOfWeek + 6) % 7) - ((b.dayOfWeek + 6) % 7))
-    setRules(ordered)
-  }, [availability])
+  const [rules, setRules] = useState(initialRules)
 
   async function handleSave() {
     await updateAvailability({ rules })
@@ -49,6 +49,11 @@ export function AvailabilitySettings({ availability = [] }: AvailabilitySettings
           <p className="text-sm text-muted-foreground">
             Set your regular working hours to manage booking slots.
           </p>
+          {timezone ? (
+            <p className="text-xs text-muted-foreground">
+              Bookings will be checked against these hours in <span className="font-medium text-foreground">{timezone}</span>.
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">

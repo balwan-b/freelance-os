@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Check, Mail, MapPin, Calendar, Phone } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Mail, MapPin, Calendar, Phone } from 'lucide-react'
 
 interface ClientHeaderProps {
   name: string
@@ -12,6 +14,7 @@ interface ClientHeaderProps {
   status: 'active' | 'inactive' | 'archived'
   joinDate: string
   avatar: string
+  onNameChange?: (newName: string) => void
 }
 
 export function ClientHeader({
@@ -21,8 +24,20 @@ export function ClientHeader({
   location,
   status,
   joinDate,
-  avatar,
+  avatar: _avatar,
+  onNameChange,
 }: ClientHeaderProps) {
+  void _avatar
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editedName, setEditedName] = useState(name)
+
+  const handleNameSave = () => {
+    setIsEditingName(false)
+    if (editedName !== name && onNameChange) {
+      onNameChange(editedName)
+    }
+  }
+
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -44,8 +59,36 @@ export function ClientHeader({
 
         <div className="flex-1">
           <div className="flex items-start justify-between mb-3">
-            <div>
-              <h1 className="text-2xl font-bold">{name}</h1>
+            <div className="flex items-center gap-3">
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={editedName} 
+                    onChange={(e) => setEditedName(e.target.value)} 
+                    className="text-xl font-bold h-9 w-64"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleNameSave()
+                      if (e.key === 'Escape') {
+                        setIsEditingName(false)
+                        setEditedName(name)
+                      }
+                    }}
+                    onBlur={handleNameSave}
+                  />
+                  <button onClick={handleNameSave} className="text-green-600 hover:text-green-700">
+                    <Check className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <h1 
+                  className="text-2xl font-bold cursor-text hover:bg-muted px-1 -ml-1 rounded transition-colors"
+                  onClick={() => setIsEditingName(true)}
+                  title="Click to edit"
+                >
+                  {name}
+                </h1>
+              )}
               <Badge className={statusConfig[status].className}>{statusConfig[status].label}</Badge>
             </div>
           </div>

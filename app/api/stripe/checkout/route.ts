@@ -22,9 +22,10 @@ export async function POST(request: Request) {
 
   const user = await currentUser()
   const baseUrl = getBaseUrl(request)
+  console.log('Using STRIPE_PRICE_ID_PRO:', process.env.STRIPE_PRICE_ID_PRO)
   const body = new URLSearchParams({
     mode: 'subscription',
-    'line_items[0][price]': process.env.STRIPE_PRICE_ID_PRO,
+    'line_items[0][price]': process.env.STRIPE_PRICE_ID_PRO!,
     'line_items[0][quantity]': '1',
     customer_email: user?.emailAddresses?.[0]?.emailAddress ?? '',
     client_reference_id: userId,
@@ -45,7 +46,11 @@ export async function POST(request: Request) {
 
   const data = await response.json()
   if (!response.ok) {
-    return NextResponse.json({ error: data.error?.message ?? 'Stripe checkout failed' }, { status: 500 })
+    console.error('Stripe API error:', data.error)
+    return NextResponse.json(
+      { error: data.error?.message ?? 'Stripe checkout failed' },
+      { status: response.status },
+    )
   }
 
   return NextResponse.json({ url: data.url })

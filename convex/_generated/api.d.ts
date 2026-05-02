@@ -16,6 +16,8 @@ import type * as inquiries from "../inquiries.js";
 import type * as lib_activity from "../lib/activity.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_billing from "../lib/billing.js";
+import type * as lib_scheduling from "../lib/scheduling.js";
+import type * as lib_timezone from "../lib/timezone.js";
 import type * as settings from "../settings.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
@@ -35,6 +37,8 @@ declare const fullApi: ApiFromModules<{
   "lib/activity": typeof lib_activity;
   "lib/auth": typeof lib_auth;
   "lib/billing": typeof lib_billing;
+  "lib/scheduling": typeof lib_scheduling;
+  "lib/timezone": typeof lib_timezone;
   settings: typeof settings;
   tasks: typeof tasks;
   users: typeof users;

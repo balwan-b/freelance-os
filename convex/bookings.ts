@@ -3,6 +3,12 @@ import { v } from "convex/values";
 import { requireCurrentUser } from "./lib/auth";
 import { recordActivity } from "./lib/activity";
 import { enforcePlanLimit, incrementUsage } from "./lib/billing";
+import {
+  assertBookingAvailability,
+  getAvailableSlotsForDate,
+  getDefaultEndTime,
+  getAvailabilityRules,
+} from "./lib/scheduling";
 
 const bookingStatusValidator = v.union(
   v.literal("upcoming"),
@@ -17,12 +23,7 @@ const bookingTypeValidator = v.union(
 );
 
 function endTimeFrom(startTime: string) {
-  const [hours, minutes] = startTime.split(":").map(Number);
-  const date = new Date(Date.UTC(2000, 0, 1, hours, minutes));
-  date.setUTCMinutes(date.getUTCMinutes() + 60);
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
-    date.getUTCMinutes(),
-  ).padStart(2, "0")}`;
+  return getDefaultEndTime(startTime);
 }
 
 export const list = query({
@@ -62,9 +63,11 @@ export const list = query({
         .collect();
     }
 
-    return rows.sort((a, b) =>
-      `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`),
-    );
+    return rows.sort((a, b) => {
+      const left = a.startsAtUtc ?? new Date(`${a.date}T${a.startTime}:00`).getTime();
+      const right = b.startsAtUtc ?? new Date(`${b.date}T${b.startTime}:00`).getTime();
+      return left - right;
+    });
   },
 });
 
@@ -78,7 +81,43 @@ export const calendar = query({
         q.eq("userId", user._id).gte("date", args.from).lte("date", args.to),
       )
       .collect();
-    return rows.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+    return rows.sort((a, b) => {
+      const left = a.startsAtUtc ?? new Date(`${a.date}T${a.startTime}:00`).getTime();
+      const right = b.startsAtUtc ?? new Date(`${b.date}T${b.startTime}:00`).getTime();
+      return left - right;
+    });
+  },
+});
+
+export const availability = query({
+  args: {
+    from: v.string(),
+    to: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const rules = await getAvailabilityRules(ctx, user._id);
+    const bookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", user._id).gte("date", args.from).lte("date", args.to),
+      )
+      .collect();
+
+    const slotsByDate: Record<string, string[]> = {};
+    let cursor = args.from;
+    while (cursor <= args.to) {
+      slotsByDate[cursor] = getAvailableSlotsForDate(cursor, rules, bookings, user.timezone);
+      const next = new Date(`${cursor}T00:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      cursor = next.toISOString().slice(0, 10);
+    }
+
+    return {
+      timezone: user.timezone,
+      rules,
+      slotsByDate,
+    };
   },
 });
 
@@ -98,6 +137,11 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireCurrentUser(ctx);
     await enforcePlanLimit(ctx, user._id, "bookingCount");
+    const availability = await assertBookingAvailability(ctx, user, {
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+    });
 
     let clientId = args.clientId;
     let clientName = args.clientName;
@@ -181,11 +225,14 @@ export const create = mutation({
       clientName,
       date: args.date,
       startTime: args.startTime,
-      endTime: args.endTime ?? endTimeFrom(args.startTime),
+      endTime: availability.endTime ?? endTimeFrom(args.startTime),
       status: "upcoming",
       type: args.type,
       amountCents: args.amountCents,
       notes: args.notes,
+      bookingTimezone: availability.bookingTimeZone,
+      startsAtUtc: availability.startsAtUtc,
+      endsAtUtc: availability.endsAtUtc,
     });
 
     await ctx.db.patch(clientId, {
@@ -197,6 +244,15 @@ export const create = mutation({
       type: "booking",
       title: "New booking confirmed",
       description: `${clientName} was booked for ${args.date} at ${args.startTime}.`,
+    });
+
+    // Automated Workflow: Create prep task for the booking
+    await ctx.db.insert("tasks", {
+      userId: user._id,
+      clientId,
+      title: `Prep for ${args.type} booking with ${clientName}`,
+      completed: false,
+      dueDate: args.date,
     });
 
     return bookingId;
@@ -223,6 +279,14 @@ export const updateStatus = mutation({
         type: "completion",
         title: "Booking completed",
         description: `${booking.clientName} booking was marked complete.`,
+      });
+    }
+    if (args.status === "cancelled") {
+      await recordActivity(ctx, {
+        userId: user._id,
+        type: "booking",
+        title: "Booking cancelled",
+        description: `${booking.clientName} booking was cancelled.`,
       });
     }
   },

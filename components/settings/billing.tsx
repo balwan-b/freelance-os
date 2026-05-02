@@ -28,12 +28,20 @@ export function BillingSettings({ subscription, usage }: BillingSettingsProps) {
 
   async function handleCheckout() {
     setLoadingAction('checkout')
-    const response = await fetch('/api/stripe/checkout', { method: 'POST' })
-    const data = await response.json()
-    if (data?.url) {
-      window.location.href = data.url
+    try {
+      const response = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const data = await response.json()
+      if (data?.url) {
+        window.location.href = data.url
+      } else {
+        alert(data?.error ?? 'Something went wrong. Please try again.')
+      }
+    } catch (err) {
+      console.error('Checkout error:', err)
+      alert('Failed to connect to checkout. Please check your internet connection.')
+    } finally {
+      setLoadingAction(null)
     }
-    setLoadingAction(null)
   }
 
   async function handlePortal() {

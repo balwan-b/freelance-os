@@ -1,42 +1,57 @@
 'use client'
 
-import React, { useState } from 'react'
-import { 
-  format, 
-  startOfWeek, 
-  addDays, 
-  startOfMonth, 
-  endOfMonth, 
-  eachDayOfInterval, 
-  isSameDay,
-  isToday,
-  addWeeks,
-  subWeeks,
+import React, { useMemo, useState } from 'react'
+import {
+  addDays,
   addMonths,
-  subMonths
+  addWeeks,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+  subWeeks,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, List, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TimeSlot } from './time-slot'
 import { cn } from '@/lib/utils'
+import { buildHourlySlots, formatTimeZoneLabel, getDateKeyInTimeZone, utcToZonedDateTimeParts } from '@/lib/timezone'
 
 interface Booking {
   id: string
   clientName: string
-  date: string // YYYY-MM-DD
-  time: string // HH:mm
+  date: string
+  time: string
   type: string
+}
+
+interface AvailabilityRule {
+  dayOfWeek: number
+  enabled: boolean
+  startTime: string
+  endTime: string
 }
 
 interface CalendarViewProps {
   bookings: Booking[]
-  onSlotClick: (date: Date, time: string) => void
+  availability: AvailabilityRule[]
+  timezone: string
+  onSlotClick: (date: string, time: string) => void
 }
 
-const HOURS = Array.from({ length: 12 }, (_, i) => `${i + 8}:00`) // 8 AM to 7 PM
+function weekdayIndexFromDate(dateKey: string) {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+}
 
-export function CalendarView({ bookings, onSlotClick }: CalendarViewProps) {
+function formatDisplayDate(date: Date, timezone: string, options: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...options }).format(date)
+}
+
+export function CalendarView({ bookings, availability, timezone, onSlotClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
 
@@ -46,11 +61,59 @@ export function CalendarView({ bookings, onSlotClick }: CalendarViewProps) {
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd })
-  
-  // Calculate padding days for the start of the month
   const firstDayOfMonth = startOfWeek(monthStart, { weekStartsOn: 1 })
   const paddingDaysCount = Math.floor((monthStart.getTime() - firstDayOfMonth.getTime()) / (1000 * 60 * 60 * 24))
   const paddingDays = Array.from({ length: paddingDaysCount }, (_, i) => addDays(firstDayOfMonth, i))
+
+  const rulesByDay = useMemo(
+    () => new Map(availability.map((rule) => [rule.dayOfWeek, rule])),
+    [availability],
+  )
+  const nowInTimeZone = utcToZonedDateTimeParts(new Date(), timezone)
+
+  const timeSlots = useMemo(() => {
+    const enabledRules = availability.filter((rule) => rule.enabled)
+    if (enabledRules.length === 0) {
+      return ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+    }
+
+    const earliest = enabledRules.reduce((lowest, rule) => (rule.startTime < lowest ? rule.startTime : lowest), enabledRules[0]!.startTime)
+    const latest = enabledRules.reduce((highest, rule) => (rule.endTime > highest ? rule.endTime : highest), enabledRules[0]!.endTime)
+    return buildHourlySlots(earliest, latest)
+  }, [availability])
+
+  const availableTimesByDate = useMemo(() => {
+    const slots = new Map<string, Set<string>>()
+    const allDates = [...paddingDays, ...monthDays, ...weekDays]
+
+    allDates.forEach((day) => {
+      const dateKey = getDateKeyInTimeZone(day, timezone)
+      const weekday = weekdayIndexFromDate(dateKey)
+      const rule = rulesByDay.get(weekday)
+      const enabledTimes = new Set<string>()
+
+      if (rule?.enabled) {
+        timeSlots.forEach((time) => {
+          if (time >= rule.startTime && time < rule.endTime && buildHourlySlots(time, rule.endTime).length > 0) {
+            const endCandidate = `${String(Number(time.slice(0, 2)) + 1).padStart(2, '0')}:${time.slice(3, 5)}`
+            if (endCandidate <= rule.endTime) {
+              enabledTimes.add(time)
+            }
+          }
+        })
+      }
+
+      bookings.forEach((booking) => {
+        if (booking.date === dateKey) {
+          enabledTimes.delete(booking.time)
+        }
+      })
+
+      slots.set(dateKey, enabledTimes)
+    })
+
+    return slots
+  }, [bookings, monthDays, paddingDays, rulesByDay, timeSlots, timezone, weekDays])
 
   const handlePrev = () => {
     if (viewMode === 'week') setCurrentDate(subWeeks(currentDate, 1))
@@ -65,14 +128,14 @@ export function CalendarView({ bookings, onSlotClick }: CalendarViewProps) {
   const handleToday = () => setCurrentDate(new Date())
 
   return (
-    <div className="flex flex-col h-full bg-card rounded-xl border border-border overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-border gap-4">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-col items-center justify-between gap-4 border-b border-border p-4 sm:flex-row">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold min-w-[150px]">
-            {format(currentDate, viewMode === 'week' ? 'MMMM yyyy' : 'MMMM yyyy')}
-          </h2>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <div>
+            <h2 className="min-w-[150px] text-xl font-bold">{format(currentDate, 'MMMM yyyy')}</h2>
+            <p className="text-xs text-muted-foreground">{formatTimeZoneLabel(timezone)}</p>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrev}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -85,134 +148,127 @@ export function CalendarView({ bookings, onSlotClick }: CalendarViewProps) {
           </div>
         </div>
 
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'week' | 'month')}>
+        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | 'month')}>
           <TabsList className="bg-muted">
             <TabsTrigger value="week" className="gap-2">
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="h-4 w-4" />
               Week
             </TabsTrigger>
             <TabsTrigger value="month" className="gap-2">
-              <CalendarIcon className="w-4 h-4" />
+              <CalendarIcon className="h-4 w-4" />
               Month
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Grid Content */}
       <div className="flex-1 overflow-auto">
         {viewMode === 'week' ? (
-          <div className="flex flex-col min-w-[800px]">
-            {/* Week Header */}
-            <div className="flex border-b border-border sticky top-0 bg-card z-10">
+          <div className="flex min-w-[860px] flex-col">
+            <div className="sticky top-0 z-10 flex border-b border-border bg-card">
               <div className="w-20 border-r border-border" />
-              {weekDays.map((day) => (
-                <div 
-                  key={day.toString()} 
-                  className={cn(
-                    "flex-1 py-3 text-center border-r border-border last:border-0",
-                    isToday(day) && "bg-primary/5"
-                  )}
-                >
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{format(day, 'EEE')}</p>
-                  <p className={cn(
-                    "text-lg font-bold mt-1",
-                    isToday(day) && "text-primary"
-                  )}>
-                    {format(day, 'd')}
-                  </p>
-                </div>
-              ))}
+              {weekDays.map((day) => {
+                const dateKey = getDateKeyInTimeZone(day, timezone)
+                return (
+                  <div
+                    key={dateKey}
+                    className={cn(
+                      'flex-1 border-r border-border py-3 text-center last:border-0',
+                      nowInTimeZone.date === dateKey && 'bg-primary/5',
+                    )}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {formatDisplayDate(day, timezone, { weekday: 'short' })}
+                    </p>
+                    <p className={cn('mt-1 text-lg font-bold', nowInTimeZone.date === dateKey && 'text-primary')}>
+                      {formatDisplayDate(day, timezone, { day: 'numeric' })}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Week Body */}
-            <div className="flex relative">
-              {/* Time Labels */}
+            <div className="relative flex">
               <div className="w-20 border-r border-border bg-muted/20">
-                {HOURS.map((hour) => (
-                  <div key={hour} className="h-20 flex items-start justify-center pt-2 text-[10px] font-bold text-muted-foreground uppercase">
+                {timeSlots.map((hour) => (
+                  <div key={hour} className="flex h-20 items-start justify-center pt-2 text-[10px] font-bold uppercase text-muted-foreground">
                     {hour}
                   </div>
                 ))}
               </div>
 
-              {/* Day Columns */}
-              {weekDays.map((day) => (
-                <div key={day.toString()} className="flex-1 border-r border-border last:border-0">
-                  {HOURS.map((hour) => {
-                    const booking = bookings.find(b => 
-                      b.date === format(day, 'yyyy-MM-dd') && b.time === hour
-                    )
-                    return (
-                      <TimeSlot 
-                        key={hour} 
-                        time={hour} 
-                        booking={booking}
-                        onClick={(h) => onSlotClick(day, h)}
-                        isNow={isToday(day) && format(new Date(), 'H:00') === hour}
-                      />
-                    )
-                  })}
-                </div>
-              ))}
+              {weekDays.map((day) => {
+                const dateKey = getDateKeyInTimeZone(day, timezone)
+                const openTimes = availableTimesByDate.get(dateKey) ?? new Set<string>()
+                return (
+                  <div key={dateKey} className="flex-1 border-r border-border last:border-0">
+                    {timeSlots.map((hour) => {
+                      const booking = bookings.find((entry) => entry.date === dateKey && entry.time === hour)
+                      return (
+                        <TimeSlot
+                          key={`${dateKey}-${hour}`}
+                          time={hour}
+                          booking={booking}
+                          isAvailable={openTimes.has(hour)}
+                          onClick={(time) => onSlotClick(dateKey, time)}
+                          isNow={nowInTimeZone.date === dateKey && `${nowInTimeZone.time.slice(0, 2)}:00` === hour}
+                        />
+                      )
+                    })}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-7 border-b border-border">
-            {/* Month Header */}
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-              <div key={day} className="py-3 text-center text-xs font-bold text-muted-foreground uppercase border-r border-border last:border-0">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+              <div key={day} className="border-r border-border py-3 text-center text-xs font-bold uppercase text-muted-foreground last:border-0">
                 {day}
               </div>
             ))}
-            
-            {/* Padding Days */}
-            {paddingDays.map(day => (
-              <div 
-                key={`padding-${day.toString()}`} 
-                className="min-h-[120px] p-2 border-r border-b border-border last:border-r-0 opacity-30 bg-muted/10"
+
+            {paddingDays.map((day) => (
+              <div
+                key={`padding-${day.toString()}`}
+                className="min-h-[120px] border-r border-b border-border bg-muted/10 p-2 opacity-30 last:border-r-0"
               >
-                <p className="text-sm font-bold text-muted-foreground/50">
-                  {format(day, 'd')}
-                </p>
+                <p className="text-sm font-bold text-muted-foreground/50">{formatDisplayDate(day, timezone, { day: 'numeric' })}</p>
               </div>
             ))}
 
-            {/* Month Days */}
             {monthDays.map((day) => {
-              const dayBookings = bookings.filter(b => b.date === format(day, 'yyyy-MM-dd'))
+              const dateKey = getDateKeyInTimeZone(day, timezone)
+              const dayBookings = bookings.filter((booking) => booking.date === dateKey)
+              const openTimes = availableTimesByDate.get(dateKey) ?? new Set<string>()
               return (
-                <div 
-                  key={day.toString()} 
-                  className={cn(
-                    "min-h-[120px] p-2 border-r border-b border-border last:border-r-0 transition-colors hover:bg-muted/30",
-                    !isSameDay(day, currentDate) && "text-muted-foreground"
-                  )}
+                <div
+                  key={dateKey}
+                  className="group min-h-[120px] border-r border-b border-border p-2 transition-colors hover:bg-muted/30 last:border-r-0"
                 >
-                  <p className={cn(
-                    "text-sm font-bold h-6 w-6 flex items-center justify-center rounded-full",
-                    isToday(day) && "bg-primary text-primary-foreground"
-                  )}>
-                    {format(day, 'd')}
+                  <p className={cn('flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold', nowInTimeZone.date === dateKey && 'bg-primary text-primary-foreground')}>
+                    {formatDisplayDate(day, timezone, { day: 'numeric' })}
                   </p>
                   <div className="mt-2 space-y-1">
                     {dayBookings.length > 0 ? (
-                      dayBookings.map(b => (
-                        <div key={b.id} className="text-[10px] p-1 rounded bg-primary/10 text-primary truncate font-medium">
-                          {b.time} {b.clientName}
+                      dayBookings.map((booking) => (
+                        <div key={booking.id} className="truncate rounded bg-primary/10 p-1 text-[10px] font-medium text-primary">
+                          {booking.time} {booking.clientName}
                         </div>
                       ))
-                    ) : (
-                      <div className="h-full flex items-center justify-center pt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-6 w-6 p-0 rounded-full"
-                          onClick={() => onSlotClick(day, '09:00')}
+                    ) : openTimes.size > 0 ? (
+                      <div className="flex h-full items-center justify-center pt-4 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 rounded-full p-0"
+                          onClick={() => onSlotClick(dateKey, [...openTimes][0] ?? '09:00')}
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="h-3 w-3" />
                         </Button>
                       </div>
+                    ) : (
+                      <p className="pt-4 text-[10px] uppercase text-muted-foreground">Unavailable</p>
                     )}
                   </div>
                 </div>

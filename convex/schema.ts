@@ -117,6 +117,9 @@ export default defineSchema({
     type: bookingType,
     amountCents: v.optional(v.number()),
     notes: v.optional(v.string()),
+    bookingTimezone: v.optional(v.string()),
+    startsAtUtc: v.optional(v.number()),
+    endsAtUtc: v.optional(v.number()),
   })
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_status", ["userId", "status"])

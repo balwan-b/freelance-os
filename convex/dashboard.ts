@@ -29,6 +29,10 @@ export const overview = query({
       .query("tasks")
       .withIndex("by_userId_and_dueDate", (q) => q.eq("userId", user._id))
       .collect();
+    const upcomingBookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_userId_and_status", (q) => q.eq("userId", user._id).eq("status", "upcoming"))
+      .collect();
     const recentActivity = await ctx.db
       .query("activityEvents")
       .withIndex("by_userId_and_occurredOn", (q) => q.eq("userId", user._id))
@@ -81,12 +85,22 @@ export const overview = query({
     return {
       todayBookings: todaysBookings
         .sort((a, b) => a.startTime.localeCompare(b.startTime))
-        .slice(0, 3),
-      tasksDueToday: allTasks.filter((task) => task.dueDate === today).slice(0, 5),
+        .slice(0, 4),
+      tasksDueToday: allTasks
+        .filter((task) => task.dueDate === today && !task.completed)
+        .slice(0, 5),
+      overdueTasks: allTasks
+        .filter((task) => !task.completed && task.dueDate && task.dueDate < today)
+        .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
+        .slice(0, 5),
+      upcomingBookings: upcomingBookings
+        .filter((booking) => booking.date >= today)
+        .sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`))
+        .slice(0, 5),
       pipelineColumns,
       recentActivities: recentActivity
         .sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
-        .slice(0, 5)
+        .slice(0, 7)
         .map((activity) => ({
           ...activity,
           time: toRelativeLabel(activity.occurredOn),

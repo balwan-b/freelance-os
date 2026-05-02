@@ -1,9 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Calendar, MessageSquare, UserPlus, CheckCircle } from 'lucide-react'
 
 interface Activity {
-  id: string
+  id?: string
+  _id?: string
   type: 'booking' | 'client' | 'message' | 'completion'
   title: string
   description: string
@@ -47,12 +47,13 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {activities.map((activity) => {
+          {activities.map((activity, index) => {
             const config = typeConfig[activity.type]
             const Icon = config.icon
+            const key = activity._id || activity.id || index
 
             return (
-              <div key={activity.id} className="flex gap-4">
+              <div key={key} className="flex gap-4">
                 <div className={`mt-1 p-2 rounded-lg ${config.color}`}>
                   <Icon className={`w-4 h-4 ${config.textColor}`} />
                 </div>

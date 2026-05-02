@@ -1,15 +1,25 @@
 'use client'
 
+import Link from 'next/link'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/page-header'
-import { StatCard } from '@/components/stat-card'
 import { BookingCard } from '@/components/booking-card'
 import { ActivityFeed } from '@/components/activity-feed'
 import { PipelinePreview } from '@/components/pipeline-preview'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { TrendingUp, MessageSquare, Plus } from 'lucide-react'
-import { useQuery } from 'convex/react'
+import { Badge } from '@/components/ui/badge'
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  CheckCheck,
+  MessageSquare,
+  Search,
+  TrendingUp,
+} from 'lucide-react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { useCurrentUser } from '@/hooks/use-current-user'
 
@@ -21,6 +31,13 @@ function formatTime(time?: string) {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+function formatDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -29,9 +46,15 @@ function formatCurrency(cents: number) {
   }).format(cents / 100)
 }
 
-export default function Home() {
+export default function DashboardPage() {
   const { currentUser, isLoading } = useCurrentUser()
   const overview = useQuery(api.dashboard.overview, currentUser ? {} : 'skip')
+  const toggleTask = useMutation(api.tasks.toggle)
+  const updateBookingStatus = useMutation(api.bookings.updateStatus)
+  type DashboardOverview = NonNullable<typeof overview>
+  type DashboardBooking = DashboardOverview['todayBookings'][number]
+  type DashboardTask = DashboardOverview['tasksDueToday'][number]
+  type Notification = NonNullable<typeof currentUser>['unreadNotifications'][number]
 
   if (isLoading || currentUser === null || overview === undefined) {
     return (
@@ -41,126 +64,294 @@ export default function Home() {
     )
   }
 
+  const unreadNotifications = currentUser.unreadNotifications ?? []
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
         <PageHeader
-          title={`Good morning, ${currentUser?.name?.split(' ')[0] ?? 'there'}`}
-          description="Here is your live control center. What should you do today?"
+          title={`Good morning, ${currentUser.name?.split(' ')[0] ?? 'there'}`}
+          description="Run the day from one place. Review work due now, upcoming bookings, and client signals without hopping between pages."
           action={
-            <Button size="sm" className="gap-2 hidden sm:flex">
-              <Plus className="w-4 h-4" />
-              Quick Add
+            <Button asChild size="sm" className="gap-2">
+              <Link href="/clients">
+                Open client directory
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </Button>
           }
         />
 
         {!overview.onboardingComplete && (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5">
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5">
             <p className="text-sm font-medium">Your workspace is live.</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Add your first client or inquiry, then save your profile and availability to complete onboarding.
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add a first client or inquiry, then finish your profile and availability so this dashboard can start working for you.
             </p>
           </div>
         )}
 
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Today</h2>
-            <p className="text-sm text-muted-foreground">
-              {overview.todayBookings.length} booking(s) scheduled
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {overview.todayBookings.length > 0 ? (
-              overview.todayBookings.map((booking: any) => (
-                <BookingCard
-                  key={booking._id}
-                  id={booking._id}
-                  clientName={booking.clientName}
-                  date="Today"
-                  time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
-                  status={booking.status}
-                  type={booking.type}
-                />
-              ))
-            ) : (
-              <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-                No bookings scheduled for today.
-              </div>
-            )}
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-border/70">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Today&apos;s Work</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold">{overview.todayBookings.length + overview.tasksDueToday.length}</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {overview.todayBookings.length} booking(s), {overview.tasksDueToday.length} task(s)
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/70">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Overdue Tasks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold">{overview.overdueTasks.length}</div>
+              <p className="mt-1 text-sm text-muted-foreground">Oldest items surface here so nothing slips.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/70">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Unread Signals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold">{unreadNotifications.length}</div>
+              <p className="mt-1 text-sm text-muted-foreground">Notifications and inbound client prompts awaiting triage.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/70">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue This Month</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-semibold">{formatCurrency(overview.stats.monthlyRevenue)}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{overview.stats.activeClients} active client(s) in motion.</p>
+            </CardContent>
+          </Card>
+        </div>
 
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold mb-3">Tasks Due Today</h3>
-            <div className="space-y-2">
-              {overview.tasksDueToday.length > 0 ? (
-                overview.tasksDueToday.map((task: any) => (
-                  <div
-                    key={task._id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted transition-colors"
-                  >
-                    <Checkbox checked={task.completed} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">{task.dueDate}</p>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <Card className="border-border/70">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Today&apos;s Work</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The shortlist of what needs attention right now.
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="gap-2">
+                <Link href="/calendar">
+                  <CalendarClock className="w-4 h-4" />
+                  Calendar
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Bookings</h3>
+                  <Badge variant="secondary">{overview.todayBookings.length}</Badge>
+                </div>
+                {overview.todayBookings.length > 0 ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {overview.todayBookings.map((booking: DashboardBooking) => (
+                      <BookingCard
+                        key={booking._id}
+                        id={booking._id}
+                        clientName={booking.clientName}
+                        date="Today"
+                        time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
+                        status={booking.status}
+                        type={booking.type}
+                        onStatusChange={(id, status) => updateBookingStatus({ bookingId: id, status })}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+                    No bookings scheduled for today.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Tasks Due Today</h3>
+                  <Badge variant="secondary">{overview.tasksDueToday.length}</Badge>
+                </div>
+                {overview.tasksDueToday.length > 0 ? (
+                  <div className="space-y-2">
+                    {overview.tasksDueToday.map((task: DashboardTask) => (
+                      <div
+                        key={task._id}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+                      >
+                        <Checkbox checked={task.completed} onCheckedChange={() => toggleTask({ taskId: task._id })} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{task.title}</p>
+                          <p className="text-xs text-muted-foreground">{task.dueDate}</p>
+                        </div>
+                        {task.clientId ? (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link href={`/clients/${task.clientId}`}>Open client</Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+                    Nothing due today.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card className="border-border/70">
+              <CardHeader>
+                <CardTitle className="text-lg">Needs Attention</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <AlertTriangle className="w-4 h-4" />
+                    Overdue tasks
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {overview.overdueTasks.length === 0
+                      ? 'Everything is up to date.'
+                      : `${overview.overdueTasks.length} task(s) need a catch-up.`}
+                  </p>
+                </div>
+
+                    {overview.overdueTasks.slice(0, 3).map((task) => (
+                  <div key={task._id} className="rounded-xl border border-border px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">Due {task.dueDate}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => toggleTask({ taskId: task._id })}>
+                        <CheckCheck className="mr-2 h-4 w-4" />
+                        Mark done
+                      </Button>
                     </div>
+                  </div>
+                ))}
+
+                <Button asChild variant="ghost" className="w-full justify-between">
+                  <Link href="/tasks?view=all">
+                    Review all tasks
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg">Unread Messages</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">Use this as your triage lane.</p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <Link href="/messages">
+                    <MessageSquare className="w-4 h-4" />
+                    Open inbox
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {unreadNotifications.length > 0 ? (
+                  unreadNotifications.map((notification: Notification) => (
+                    <div key={notification._id} className="rounded-xl border border-border px-4 py-3">
+                      <p className="text-sm font-medium">{notification.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{notification.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+                    No unread client signals right now.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <Card className="border-border/70">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Upcoming Bookings</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Keep the week visible without leaving the dashboard.
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm" className="gap-2">
+                <Link href="/bookings">
+                  View all
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {overview.upcomingBookings.length > 0 ? (
+                overview.upcomingBookings.map((booking) => (
+                  <div key={booking._id} className="flex items-center justify-between gap-4 rounded-xl border border-border px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{booking.clientName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {booking.type} on {formatDate(booking.date)} at {formatTime(booking.startTime)}
+                      </p>
+                    </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/clients/${booking.clientId}`}>Open hub</Link>
+                    </Button>
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  Nothing due today.
+                <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+                  No upcoming bookings yet.
                 </div>
               )}
-            </div>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
 
-        <div>
-          <PipelinePreview columns={overview.pipelineColumns} />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <StatCard
-            title="Revenue This Month"
-            description="Completed bookings"
-            value={formatCurrency(overview.stats.monthlyRevenue)}
-            icon={<TrendingUp className="w-5 h-5" />}
-            trend={{ value: 0, label: 'tracking live', isPositive: true }}
-          />
-          <StatCard
-            title="Conversion Rate"
-            description="Bookings versus active clients"
-            value={`${overview.stats.conversionRate}%`}
-            icon={<MessageSquare className="w-5 h-5" />}
-            trend={{ value: 0, label: 'based on live data', isPositive: true }}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <ActivityFeed activities={overview.recentActivities} />
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg border border-border bg-card">
-              <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">Quick Stats</p>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-2xl font-bold">{overview.stats.activeInquiries}</p>
-                  <p className="text-xs text-muted-foreground">Open inquiries</p>
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle className="text-lg">Workspace Snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-border px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <TrendingUp className="w-4 h-4" />
+                  Conversion rate
                 </div>
-                <div className="border-t border-border pt-3">
-                  <p className="text-2xl font-bold">{overview.stats.activeClients}</p>
-                  <p className="text-xs text-muted-foreground">Active clients</p>
-                </div>
-                <div className="border-t border-border pt-3">
-                  <p className="text-2xl font-bold">{formatCurrency(overview.stats.revenueThisWeek)}</p>
-                  <p className="text-xs text-muted-foreground">Revenue snapshot</p>
-                </div>
+                <p className="mt-2 text-2xl font-semibold">{overview.stats.conversionRate}%</p>
               </div>
-            </div>
-          </div>
+              <div className="rounded-xl border border-border px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Search className="w-4 h-4" />
+                  Active inquiries
+                </div>
+                <p className="mt-2 text-2xl font-semibold">{overview.stats.activeInquiries}</p>
+              </div>
+              <div className="rounded-xl border border-border px-4 py-3">
+                <p className="text-sm font-medium">Revenue snapshot</p>
+                <p className="mt-2 text-2xl font-semibold">{formatCurrency(overview.stats.revenueThisWeek)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <PipelinePreview columns={overview.pipelineColumns} />
+          <ActivityFeed activities={overview.recentActivities} />
         </div>
       </div>
     </DashboardLayout>

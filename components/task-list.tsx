@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { TaskItem, Task } from './task-item'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 interface TaskListProps {
   tasks: Task[]
@@ -52,12 +52,12 @@ export function TaskList({ tasks, onTaskToggle, onAddTask }: TaskListProps) {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/10 rounded-2xl border border-dashed border-border/50">
-          <div className="p-4 rounded-full bg-muted/50 mb-4">
-            <Search className="w-8 h-8 text-muted-foreground" />
+          <div className="p-4 rounded-full bg-primary/10 mb-4 text-primary">
+            <Plus className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-medium">No tasks found</h3>
-          <p className="text-muted-foreground max-w-xs mt-2 text-sm">
-            Try adjusting your filters or add a new task above.
+          <h3 className="text-lg font-semibold">Create your first task</h3>
+          <p className="text-muted-foreground max-w-sm mt-2 text-sm mb-6">
+            Keep track of what you need to do. Add your first task using the quick add field above, or press <kbd className="px-2 py-0.5 rounded-md bg-muted text-xs mx-1">Cmd K</kbd> anywhere.
           </p>
         </div>
       )}

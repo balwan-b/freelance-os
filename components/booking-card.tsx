@@ -1,6 +1,7 @@
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Clock, Calendar, Phone, Video, Briefcase, XCircle, CheckCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Clock, Calendar, Video, Briefcase, XCircle, CheckCircle, Check, CalendarDays, X } from 'lucide-react'
 
 export type BookingStatus = 'upcoming' | 'completed' | 'cancelled'
 export type BookingType = 'call' | 'session' | 'project'
@@ -12,6 +13,8 @@ interface BookingCardProps {
   time: string
   status: BookingStatus
   type: BookingType
+  onStatusChange?: (id: string, newStatus: BookingStatus) => void
+  onReschedule?: (id: string) => void
 }
 
 const statusConfig = {
@@ -44,7 +47,7 @@ const typeConfig = {
   project: { icon: Briefcase, label: 'Project' },
 }
 
-export function BookingCard({ clientName, date, time, status, type }: BookingCardProps) {
+export function BookingCard({ id, clientName, date, time, status, type, onStatusChange, onReschedule }: BookingCardProps) {
   const statusInfo = statusConfig[status as keyof typeof statusConfig] || statusConfig.upcoming
   const typeInfo = typeConfig[type as keyof typeof typeConfig] || typeConfig.project
   const StatusIcon = statusInfo.icon
@@ -87,6 +90,45 @@ export function BookingCard({ clientName, date, time, status, type }: BookingCar
           </div>
         </div>
       </CardContent>
+      {status === 'upcoming' && (
+        <CardFooter className="p-3 pt-0 border-t border-current/5 flex items-center justify-between gap-2 bg-background/50">
+          <div className="flex gap-2">
+            {onStatusChange && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-2 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                onClick={() => onStatusChange(id, 'completed')}
+              >
+                <Check className="w-3.5 h-3.5 mr-1" />
+                Done
+              </Button>
+            )}
+            {onReschedule && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                onClick={() => onReschedule(id)}
+              >
+                <CalendarDays className="w-3.5 h-3.5 mr-1" />
+                Reschedule
+              </Button>
+            )}
+          </div>
+          {onStatusChange && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+              onClick={() => onStatusChange(id, 'cancelled')}
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Cancel
+            </Button>
+          )}
+        </CardFooter>
+      )}
     </Card>
   )
 }

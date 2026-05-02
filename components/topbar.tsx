@@ -1,7 +1,6 @@
 'use client'
 
 import { Search, Plus, Bell, Menu } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -27,6 +26,7 @@ export function Topbar({ isCollapsed, onMenuClick }: TopbarProps) {
   const { currentUser } = useCurrentUser()
   const markNotificationRead = useMutation(api.users.markNotificationRead)
   const unreadNotifications = currentUser?.unreadNotifications ?? []
+  type Notification = NonNullable<typeof currentUser>['unreadNotifications'][number]
 
   return (
     <>
@@ -42,13 +42,17 @@ export function Topbar({ isCollapsed, onMenuClick }: TopbarProps) {
           </Button>
 
           <div className="flex-1 max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                className="pl-9 h-9 bg-muted border-0 placeholder:text-muted-foreground focus-visible:ring-1"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="flex h-9 w-full items-center gap-3 rounded-md bg-muted px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/80"
+            >
+              <Search className="w-4 h-4" />
+              <span className="flex-1 text-left">Search clients, tasks, bookings...</span>
+              <kbd className="hidden sm:inline-flex items-center rounded border border-border bg-background px-2 py-0.5 text-[10px] font-medium">
+                Ctrl K
+              </kbd>
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
@@ -79,7 +83,7 @@ export function Topbar({ isCollapsed, onMenuClick }: TopbarProps) {
                     No new notifications.
                   </div>
                 ) : (
-                  unreadNotifications.map((notification: any) => (
+                  unreadNotifications.map((notification: Notification) => (
                     <DropdownMenuItem
                       key={notification._id}
                       className="cursor-pointer p-3"

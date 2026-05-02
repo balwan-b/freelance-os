@@ -56,7 +56,7 @@ export const ensureCurrentUser = mutation({
       name,
       imageUrl,
       onboardingCompleted: false,
-      timezone: "Asia/Calcutta",
+      timezone: "UTC",
     });
 
     await ctx.db.insert("userSettings", {

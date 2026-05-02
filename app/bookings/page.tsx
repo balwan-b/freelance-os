@@ -98,17 +98,28 @@ export default function BookingsPage() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/10 rounded-2xl border border-dashed border-border">
-              <div className="p-4 rounded-full bg-muted mb-4">
-                <CalendarIcon className="w-8 h-8 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/10 rounded-2xl border border-dashed border-border/50">
+              <div className="p-4 rounded-full bg-primary/10 mb-4 text-primary">
+                <CalendarIcon className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-medium">No bookings found</h3>
-              <p className="text-muted-foreground max-w-sm mt-2">
-                Try adjusting your filters or create a new booking to get started.
+              <h3 className="text-lg font-semibold">
+                {statusFilter !== 'all' || dateFilter ? 'No bookings match filters' : 'Schedule your first booking'}
+              </h3>
+              <p className="text-muted-foreground max-w-sm mt-2 text-sm mb-6">
+                {statusFilter !== 'all' || dateFilter 
+                  ? 'Try adjusting your filters to see more results.'
+                  : 'Get started by scheduling a session, call, or project with a client.'}
               </p>
-              <Button variant="outline" className="mt-6" onClick={handleClearFilters}>
-                Clear All Filters
-              </Button>
+              {statusFilter !== 'all' || dateFilter ? (
+                <Button variant="outline" onClick={handleClearFilters}>
+                  Clear Filters
+                </Button>
+              ) : (
+                <Button onClick={() => setBookingOpen(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  New Booking
+                </Button>
+              )}
             </div>
           )}
         </div>

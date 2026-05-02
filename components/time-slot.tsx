@@ -10,17 +10,19 @@ interface TimeSlotProps {
     clientName: string
     type: string
   }
+  isAvailable?: boolean
   onClick: (time: string) => void
   isNow?: boolean
 }
 
-export function TimeSlot({ time, booking, onClick, isNow }: TimeSlotProps) {
+export function TimeSlot({ time, booking, isAvailable = true, onClick, isNow }: TimeSlotProps) {
   return (
     <div 
-      onClick={() => !booking && onClick(time)}
+      onClick={() => !booking && isAvailable && onClick(time)}
       className={cn(
         "group relative h-20 border-b border-border/50 transition-colors cursor-pointer",
-        !booking && "hover:bg-muted/50",
+        !booking && isAvailable && "hover:bg-muted/50",
+        !booking && !isAvailable && "cursor-not-allowed bg-muted/20",
         isNow && "bg-primary/5"
       )}
     >
@@ -38,7 +40,7 @@ export function TimeSlot({ time, booking, onClick, isNow }: TimeSlotProps) {
       ) : (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-[10px] font-medium text-muted-foreground uppercase">
-            Book Slot
+            {isAvailable ? 'Book Slot' : 'Unavailable'}
           </span>
         </div>
       )}

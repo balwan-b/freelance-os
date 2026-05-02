@@ -73,7 +73,7 @@ export default function SettingsPage() {
               <ProfileSettings user={settings.user} settings={settings.settings} />
             </TabsContent>
             <TabsContent value="availability" className="focus-visible:outline-none focus-visible:ring-0">
-              <AvailabilitySettings availability={settings.availability} />
+              <AvailabilitySettings timezone={settings.user.timezone} availability={settings.availability} />
             </TabsContent>
             <TabsContent value="notifications" className="focus-visible:outline-none focus-visible:ring-0">
               <NotificationSettings notifications={settings.settings?.notifications} />

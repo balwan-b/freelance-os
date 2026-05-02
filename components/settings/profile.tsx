@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,34 +12,34 @@ import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 
 interface ProfileSettingsProps {
-  user?: any
-  settings?: any
+  user?: {
+    name?: string
+    email?: string
+    imageUrl?: string
+    timezone?: string
+  }
+  settings?: {
+    bio?: string
+    location?: string
+    phone?: string
+  }
 }
 
 export function ProfileSettings({ user, settings }: ProfileSettingsProps) {
   const updateProfile = useMutation(api.settings.updateProfile)
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    bio: '',
-    location: '',
-    phone: '',
-    timezone: 'Asia/Calcutta',
-  })
-
-  useEffect(() => {
+  const initialForm = useMemo(() => {
     const parts = (user?.name ?? '').split(' ')
-    setForm({
+    return {
       firstName: parts[0] ?? '',
       lastName: parts.slice(1).join(' '),
       email: user?.email ?? '',
       bio: settings?.bio ?? '',
       location: settings?.location ?? '',
       phone: settings?.phone ?? '',
-      timezone: user?.timezone ?? 'Asia/Calcutta',
-    })
+      timezone: user?.timezone ?? 'UTC',
+    }
   }, [settings, user])
+  const [form, setForm] = useState(initialForm)
 
   async function handleSave() {
     await updateProfile({
@@ -105,6 +105,19 @@ export function ProfileSettings({ user, settings }: ProfileSettingsProps) {
           <div className="space-y-2">
             <Label htmlFor="location">Location</Label>
             <Input id="location" value={form.location} onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Input
+              id="timezone"
+              value={form.timezone}
+              placeholder="America/New_York"
+              onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Used for availability rules, booking conflict checks, and calendar scheduling.
+            </p>
           </div>
 
           <div className="space-y-2">

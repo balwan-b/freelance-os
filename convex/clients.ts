@@ -178,5 +178,55 @@ export const addNote = mutation({
     await ctx.db.patch(client._id, {
       lastInteractionDate: createdOn.slice(0, 10),
     });
+    await recordActivity(ctx, {
+      userId: user._id,
+      type: "message",
+      title: "Client note added",
+      description: `A new note was added for ${client.name}.`,
+    });
+  },
+});
+
+export const update = mutation({
+  args: {
+    clientId: v.id("clients"),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    location: v.optional(v.string()),
+    status: v.optional(clientStatusValidator),
+    tags: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const client = await ctx.db.get(args.clientId);
+    if (!client || client.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    const patch: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      location?: string;
+      status?: "active" | "inactive" | "archived";
+      tags?: string[];
+      initials?: string;
+      lastInteractionDate?: string;
+    } = {
+      lastInteractionDate: new Date().toISOString().slice(0, 10),
+    };
+
+    if (args.name !== undefined) {
+      patch.name = args.name;
+      patch.initials = initialsFor(args.name);
+    }
+    if (args.email !== undefined) patch.email = args.email;
+    if (args.phone !== undefined) patch.phone = args.phone;
+    if (args.location !== undefined) patch.location = args.location;
+    if (args.status !== undefined) patch.status = args.status;
+    if (args.tags !== undefined) patch.tags = args.tags;
+
+    await ctx.db.patch(args.clientId, patch);
   },
 });

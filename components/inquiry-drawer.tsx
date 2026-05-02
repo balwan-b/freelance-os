@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
-import { Mail, Phone, DollarSign } from 'lucide-react'
+import { Mail, Phone, DollarSign, Pencil, Trash2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -28,6 +28,8 @@ interface InquiryDrawerProps {
   onStageChange?: (stage: 'new' | 'contacted' | 'qualified' | 'rejected') => void
   onConvert?: () => void
   onSchedule?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export function InquiryDrawer({
@@ -38,6 +40,8 @@ export function InquiryDrawer({
   onStageChange,
   onConvert,
   onSchedule,
+  onEdit,
+  onDelete,
 }: InquiryDrawerProps) {
   if (!inquiry) return null
 
@@ -112,12 +116,24 @@ export function InquiryDrawer({
         </div>
 
         <div className="border-t border-border px-6 py-4 space-y-2">
+          {onEdit ? (
+            <Button variant="outline" className="w-full" onClick={onEdit}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit Inquiry
+            </Button>
+          ) : null}
           <Button className="w-full" onClick={onConvert}>
             Convert to Client
           </Button>
           <Button variant="outline" className="w-full" onClick={onSchedule}>
             Schedule Booking
           </Button>
+          {onDelete ? (
+            <Button variant="outline" className="w-full text-destructive" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Inquiry
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

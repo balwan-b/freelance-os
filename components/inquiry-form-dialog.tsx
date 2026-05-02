@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,17 @@ import { Textarea } from "@/components/ui/textarea";
 interface InquiryFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  initialData?: {
+    name: string;
+    service: string;
+    email?: string;
+    phone?: string;
+    budget?: string;
+    notes?: string;
+    tags?: string[];
+  };
   onSubmit: (values: {
     name: string;
     service: string;
@@ -31,33 +42,30 @@ interface InquiryFormDialogProps {
 export function InquiryFormDialog({
   open,
   onOpenChange,
+  title = "New Inquiry",
+  description = "Capture a lead so it can move through your workflow.",
+  initialData,
   onSubmit,
 }: InquiryFormDialogProps) {
-  const [form, setForm] = useState({
-    name: "",
-    service: "",
-    email: "",
-    phone: "",
-    budget: "",
-    notes: "",
-    tags: "",
-  });
+  const initialForm = {
+    name: initialData?.name ?? "",
+    service: initialData?.service ?? "",
+    email: initialData?.email ?? "",
+    phone: initialData?.phone ?? "",
+    budget: initialData?.budget ?? "",
+    notes: initialData?.notes ?? "",
+    tags: initialData?.tags?.join(", ") ?? "",
+  };
+  const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setForm({
-        name: "",
-        service: "",
-        email: "",
-        phone: "",
-        budget: "",
-        notes: "",
-        tags: "",
-      });
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setForm(initialForm);
       setSubmitting(false);
     }
-  }, [open]);
+    onOpenChange(nextOpen);
+  }
 
   async function handleSubmit() {
     if (!form.name.trim() || !form.service.trim()) return;
@@ -74,18 +82,16 @@ export function InquiryFormDialog({
         .map((tag) => tag.trim())
         .filter(Boolean),
     });
-    onOpenChange(false);
+    handleOpenChange(false);
     setSubmitting(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Inquiry</DialogTitle>
-          <DialogDescription>
-            Capture a lead so it can move through your workflow.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -155,11 +161,11 @@ export function InquiryFormDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim() || !form.service.trim() || submitting}>
-            {submitting ? "Saving..." : "Create Inquiry"}
+            {submitting ? "Saving..." : initialData ? "Save Inquiry" : "Create Inquiry"}
           </Button>
         </DialogFooter>
       </DialogContent>

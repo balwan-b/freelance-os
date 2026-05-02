@@ -24,7 +24,6 @@ const navItems = [
   { icon: Calendar, label: 'Calendar', href: '/calendar' },
   { icon: List, label: 'Bookings', href: '/bookings' },
   { icon: CheckCircle, label: 'Tasks', href: '/tasks' },
-  { icon: MessageCircle, label: 'Inbox', href: '/messages' },
   { icon: MessageSquare, label: 'Inquiries', href: '/inquiries' },
   { icon: Users, label: 'Clients', href: '/clients' },
   { icon: Settings, label: 'Settings', href: '/settings' },

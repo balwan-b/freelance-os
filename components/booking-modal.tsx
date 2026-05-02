@@ -31,7 +31,16 @@ interface BookingModalProps {
   defaultClientName?: string
   timezone?: string
   availableTimes?: string[]
+  initialData?: {
+    id: string
+    clientId?: string
+    clientName?: string
+    date: string
+    startTime: string
+    type: 'call' | 'session' | 'project'
+  }
   onSubmit?: (values: {
+    id?: string
     clientId?: string
     clientName?: string
     date: string
@@ -50,13 +59,14 @@ export function BookingModal({
   defaultClientName,
   timezone = 'UTC',
   availableTimes,
+  initialData,
   onSubmit,
 }: BookingModalProps) {
-  const [clientValue, setClientValue] = useState('')
-  const [clientName, setClientName] = useState('')
-  const [dateValue, setDateValue] = useState('')
-  const [timeValue, setTimeValue] = useState('')
-  const [typeValue, setTypeValue] = useState<'call' | 'session' | 'project'>('call')
+  const [clientValue, setClientValue] = useState(initialData?.clientId ?? '')
+  const [clientName, setClientName] = useState(initialData?.clientName ?? '')
+  const [dateValue, setDateValue] = useState(initialData?.date ?? '')
+  const [timeValue, setTimeValue] = useState(initialData?.startTime ?? '')
+  const [typeValue, setTypeValue] = useState<'call' | 'session' | 'project'>(initialData?.type ?? 'call')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,16 +81,29 @@ export function BookingModal({
 
   function handleOpenChange(open: boolean) {
     if (!open) {
-      setClientValue('')
-      setClientName('')
-      setDateValue('')
-      setTimeValue('')
-      setTypeValue('call')
+      setClientValue(initialData?.clientId ?? '')
+      setClientName(initialData?.clientName ?? '')
+      setDateValue(initialData?.date ?? '')
+      setTimeValue(initialData?.startTime ?? '')
+      setTypeValue(initialData?.type ?? 'call')
       setSubmitting(false)
       setError(null)
       onClose()
     }
+    // No need for else since useEffect handles the open state pre-fill if we wanted it
+    // but here we use simple state and a key change usually works best in React.
   }
+
+  // React to initialData changes when the modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      setClientValue(initialData?.clientId ?? '')
+      setClientName(initialData?.clientName ?? '')
+      setDateValue(initialData?.date ?? '')
+      setTimeValue(initialData?.startTime ?? '')
+      setTypeValue(initialData?.type ?? 'call')
+    }
+  }, [isOpen, initialData])
 
   async function handleSubmit() {
     if (!onSubmit) {
@@ -91,6 +114,7 @@ export function BookingModal({
       setSubmitting(true)
       setError(null)
       await onSubmit({
+        id: initialData?.id,
         clientId: effectiveClientValue || undefined,
         clientName: effectiveClientName.trim() || undefined,
         date: effectiveDateValue,
@@ -109,9 +133,9 @@ export function BookingModal({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>New Booking</DialogTitle>
+          <DialogTitle>{initialData ? 'Edit Booking' : 'New Booking'}</DialogTitle>
           <DialogDescription>
-            Schedule a new session or call with a client.
+            {initialData ? 'Update the details for this booking.' : 'Schedule a new session or call with a client.'}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -188,7 +212,7 @@ export function BookingModal({
             onClick={handleSubmit}
             disabled={!effectiveDateValue || !effectiveTimeValue || (!effectiveClientValue && !effectiveClientName.trim()) || submitting}
           >
-            {submitting ? 'Creating...' : 'Create Booking'}
+            {submitting ? (initialData ? 'Saving...' : 'Creating...') : (initialData ? 'Save Changes' : 'Create Booking')}
           </Button>
         </DialogFooter>
       </DialogContent>

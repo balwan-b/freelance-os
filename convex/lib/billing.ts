@@ -1,37 +1,38 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { currentMonthKey } from "./auth";
 
 export async function getSubscriptionForUser(
   ctx: QueryCtx | MutationCtx,
-  userId: string,
+  userId: Id<"users">,
 ) {
   return await ctx.db
     .query("subscriptions")
-    .withIndex("by_userId", (q) => q.eq("userId", userId as never))
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
 }
 
 export async function getUsageCounter(
   ctx: QueryCtx | MutationCtx,
-  userId: string,
+  userId: Id<"users">,
   monthKey = currentMonthKey(),
 ) {
   return await ctx.db
     .query("usageCounters")
     .withIndex("by_userId_and_monthKey", (q) =>
-      q.eq("userId", userId as never).eq("monthKey", monthKey),
+      q.eq("userId", userId).eq("monthKey", monthKey),
     )
     .unique();
 }
 
-export async function ensureUsageCounter(ctx: MutationCtx, userId: string) {
+export async function ensureUsageCounter(ctx: MutationCtx, userId: Id<"users">) {
   const monthKey = currentMonthKey();
   const counter = await getUsageCounter(ctx, userId, monthKey);
   if (counter) {
     return counter;
   }
   const counterId = await ctx.db.insert("usageCounters", {
-    userId: userId as never,
+    userId,
     monthKey,
     clientCount: 0,
     bookingCount: 0,
@@ -41,7 +42,7 @@ export async function ensureUsageCounter(ctx: MutationCtx, userId: string) {
 
 export async function incrementUsage(
   ctx: MutationCtx,
-  userId: string,
+  userId: Id<"users">,
   key: "clientCount" | "bookingCount",
 ) {
   const counter = await ensureUsageCounter(ctx, userId);
@@ -52,7 +53,7 @@ export async function incrementUsage(
 
 export async function enforcePlanLimit(
   ctx: MutationCtx,
-  userId: string,
+  userId: Id<"users">,
   key: "clientCount" | "bookingCount",
 ) {
   const subscription = await getSubscriptionForUser(ctx, userId);

@@ -82,23 +82,28 @@ export const updateAvailability = mutation({
   args: { rules: v.array(availabilityRuleValidator) },
   handler: async (ctx, args) => {
     const { user } = await requireCurrentUser(ctx);
-    for (const rule of args.rules) {
-      const existing = await ctx.db
-        .query("availabilityRules")
-        .withIndex("by_userId_and_dayOfWeek", (q) =>
-          q.eq("userId", user._id).eq("dayOfWeek", rule.dayOfWeek),
-        )
-        .unique();
 
-      if (existing) {
-        await ctx.db.patch(existing._id, rule);
-      } else {
-        await ctx.db.insert("availabilityRules", {
-          userId: user._id,
-          ...rule,
-        });
-      }
-    }
+    // Fetch all existing rules in parallel, then write in parallel
+    const existingRules = await Promise.all(
+      args.rules.map((rule) =>
+        ctx.db
+          .query("availabilityRules")
+          .withIndex("by_userId_and_dayOfWeek", (q) =>
+            q.eq("userId", user._id).eq("dayOfWeek", rule.dayOfWeek),
+          )
+          .unique(),
+      ),
+    );
+
+    await Promise.all(
+      args.rules.map((rule, i) => {
+        const existing = existingRules[i];
+        if (existing) {
+          return ctx.db.patch(existing._id, rule);
+        }
+        return ctx.db.insert("availabilityRules", { userId: user._id, ...rule });
+      }),
+    );
   },
 });
 

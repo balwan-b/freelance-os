@@ -15,6 +15,8 @@ export default function CalendarPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null)
   const createBooking = useMutation(api.bookings.create)
+  const updateBooking = useMutation(api.bookings.update)
+  const removeBooking = useMutation(api.bookings.remove)
   const bookings = useQuery(api.bookings.list, currentUser ? { status: undefined, date: undefined } : 'skip')
   const clients = useQuery(api.clients.list, currentUser ? { status: undefined, search: undefined } : 'skip')
   const settings = useQuery(api.settings.get, currentUser ? {} : 'skip')
@@ -84,6 +86,13 @@ export default function CalendarPage() {
             availability={settings.availability}
             timezone={settings.user.timezone}
             onSlotClick={handleSlotClick}
+            onBookingClick={(booking) => {
+              const fullBooking = bookings?.find(b => b._id === booking.id);
+              if (fullBooking) {
+                setSelectedSlot({ date: fullBooking.date, time: fullBooking.startTime });
+                setIsModalOpen(true);
+              }
+            }}
           />
         </div>
 
@@ -95,15 +104,39 @@ export default function CalendarPage() {
           availableTimes={selectedAvailableTimes}
           timezone={settings.user.timezone}
           clients={clients.map((client) => ({ id: client._id, name: client.name }))}
-          onSubmit={(values) =>
-            createBooking({
-              clientId: values.clientId,
-              clientName: values.clientName,
-              date: values.date,
-              startTime: values.startTime,
-              type: values.type,
-            })
-          }
+          initialData={(() => {
+            const booking = bookings?.find(b => b.date === selectedSlot?.date && b.startTime === selectedSlot?.time);
+            if (booking) {
+              return {
+                id: booking._id,
+                clientId: booking.clientId,
+                clientName: booking.clientName,
+                date: booking.date,
+                startTime: booking.startTime,
+                type: booking.type,
+              }
+            }
+            return undefined;
+          })()}
+          onSubmit={async (values) => {
+            if (values.id) {
+              await updateBooking({
+                bookingId: values.id as any,
+                clientId: values.clientId as any,
+                date: values.date,
+                startTime: values.startTime,
+                type: values.type,
+              })
+            } else {
+              await createBooking({
+                clientId: values.clientId,
+                clientName: values.clientName,
+                date: values.date,
+                startTime: values.startTime,
+                type: values.type,
+              })
+            }
+          }}
         />
       </div>
     </DashboardLayout>

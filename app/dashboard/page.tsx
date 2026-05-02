@@ -46,6 +46,13 @@ function formatCurrency(cents: number) {
   }).format(cents / 100)
 }
 
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export default function DashboardPage() {
   const { currentUser, isLoading } = useCurrentUser()
   const overview = useQuery(api.dashboard.overview, currentUser ? {} : 'skip')
@@ -70,7 +77,7 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-8">
         <PageHeader
-          title={`Good morning, ${currentUser.name?.split(' ')[0] ?? 'there'}`}
+          title={`${getGreeting()}, ${currentUser.name?.split(' ')[0] ?? 'there'}`}
           description="Run the day from one place. Review work due now, upcoming bookings, and client signals without hopping between pages."
           action={
             <Button asChild size="sm" className="gap-2">
@@ -255,15 +262,9 @@ export default function DashboardPage() {
             <Card className="border-border/70">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-lg">Unread Messages</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">Use this as your triage lane.</p>
+                  <CardTitle className="text-lg">Unread Notifications</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">Review recent activity and signals.</p>
                 </div>
-                <Button asChild variant="outline" size="sm" className="gap-2">
-                  <Link href="/messages">
-                    <MessageSquare className="w-4 h-4" />
-                    Open inbox
-                  </Link>
-                </Button>
               </CardHeader>
               <CardContent className="space-y-3">
                 {unreadNotifications.length > 0 ? (

@@ -50,10 +50,10 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
   const router = useRouter()
 
   const { currentUser } = useCurrentUser()
-  const clients = useQuery(api.clients.list, currentUser ? {} : 'skip')
-  const tasks = useQuery(api.tasks.list, currentUser ? {} : 'skip')
-  const bookings = useQuery(api.bookings.list, currentUser ? {} : 'skip')
-  const inquiries = useQuery(api.inquiries.list, currentUser ? {} : 'skip')
+  const clients = useQuery(api.clients.list, open && currentUser ? {} : 'skip')
+  const tasks = useQuery(api.tasks.list, open && currentUser ? {} : 'skip')
+  const bookings = useQuery(api.bookings.list, open && currentUser ? {} : 'skip')
+  const inquiries = useQuery(api.inquiries.list, open && currentUser ? {} : 'skip')
   type Client = NonNullable<typeof clients>[number]
   type Task = NonNullable<typeof tasks>[number]
   type Booking = NonNullable<typeof bookings>[number]
@@ -214,15 +214,8 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
             ))}
           </CommandGroup>
 
-          <CommandGroup heading="Inbox and Pipeline">
-            <CommandItem onSelect={() => openAndClose(() => router.push('/messages'))}>
-              <Inbox className="mr-3 h-4 w-4 text-muted-foreground" />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Open Inbox</span>
-                <span className="text-xs text-muted-foreground">Review client conversations and replies</span>
-              </div>
-              <CommandShortcut>Inbox</CommandShortcut>
-            </CommandItem>
+          <CommandGroup heading="Pipeline">
+
             {(inquiryItems ?? []).map((inquiry: Inquiry) => (
               <CommandItem
                 key={inquiry._id}

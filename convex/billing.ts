@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { currentMonthKey, requireCurrentUser } from "./lib/auth";
 
@@ -34,7 +34,11 @@ export const summary = query({
   },
 });
 
-export const syncFromWebhook = mutation({
+/**
+ * INTERNAL ONLY — called exclusively from the Stripe webhook API route.
+ * Never expose this as a public mutation; it sets subscription plans with no auth.
+ */
+export const syncFromWebhook = internalMutation({
   args: {
     clerkUserId: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),

@@ -35,6 +35,34 @@ export const create = mutation({
   },
 });
 
+export const update = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    title: v.optional(v.string()),
+    dueDate: v.optional(v.string()),
+    completed: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const task = await ctx.db.get(args.taskId);
+    if (!task || task.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    const patch: {
+      title?: string;
+      dueDate?: string;
+      completed?: boolean;
+    } = {};
+
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.dueDate !== undefined) patch.dueDate = args.dueDate;
+    if (args.completed !== undefined) patch.completed = args.completed;
+
+    await ctx.db.patch(args.taskId, patch);
+  },
+});
+
 export const toggle = mutation({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
@@ -44,33 +72,41 @@ export const toggle = mutation({
       throw new Error("Unauthorized");
     }
     const completed = !task.completed;
-    const now = new Date().toISOString();
 
-    await ctx.db.patch(args.taskId, {
-      completed,
-    });
+    await ctx.db.patch(args.taskId, { completed });
 
-    // Automated Workflow: Add a note if task is completed
     if (completed && task.clientId) {
-      await ctx.db.insert("notes", {
-        userId: user._id,
-        clientId: task.clientId,
-        authorName: "System",
-        content: `Task completed: ${task.title}`,
-        createdOn: now,
-      });
-      await recordActivity(ctx, {
-        userId: user._id,
-        type: "completion",
-        title: "Task completed",
-        description: task.title,
-      });
-      const client = await ctx.db.get(task.clientId);
-      if (client) {
-        await ctx.db.patch(client._id, {
-          lastInteractionDate: now.slice(0, 10),
-        });
-      }
+      // Record activity (which also inserts a notification) and bump lastInteractionDate
+      await Promise.all([
+        recordActivity(ctx, {
+          userId: user._id,
+          type: "completion",
+          title: "Task completed",
+          description: task.title,
+        }),
+        ctx.db.get(task.clientId).then((client) => {
+          if (client) {
+            return ctx.db.patch(client._id, {
+              lastInteractionDate: new Date().toISOString().slice(0, 10),
+            });
+          }
+        }),
+      ]);
     }
   },
 });
+
+export const remove = mutation({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const task = await ctx.db.get(args.taskId);
+    if (!task || task.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.delete(args.taskId);
+  },
+});
+
+

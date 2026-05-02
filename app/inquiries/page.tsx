@@ -30,7 +30,19 @@ const stageTitle: Record<InquiryStage, string> = {
   rejected: 'Rejected',
 }
 
-function toInquiry(row: any): Inquiry {
+type InquiryRecord = {
+  _id: string
+  name: string
+  service: string
+  receivedOn: string
+  tags: string[]
+  budget?: string
+  email?: string
+  phone?: string
+  notes?: string
+}
+
+function toInquiry(row: InquiryRecord): Inquiry {
   return {
     id: row._id,
     name: row.name,
@@ -48,7 +60,9 @@ export default function InquiriesPage() {
   const { currentUser, isLoading } = useCurrentUser()
   const inquiryGroups = useQuery(api.inquiries.list, currentUser ? {} : 'skip')
   const createInquiry = useMutation(api.inquiries.create)
+  const updateInquiry = useMutation(api.inquiries.update)
   const updateStage = useMutation(api.inquiries.updateStage)
+  const removeInquiry = useMutation(api.inquiries.remove)
   const convertToClient = useMutation(api.inquiries.convertToClient)
   const createBooking = useMutation(api.bookings.create)
 
@@ -57,6 +71,7 @@ export default function InquiriesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [editingInquiry, setEditingInquiry] = useState<Inquiry | null>(null)
 
   const columns = useMemo(() => {
     if (!inquiryGroups) return []
@@ -116,20 +131,53 @@ export default function InquiriesPage() {
         onStageChange={async (stage) => {
           if (!selectedInquiry) return
           setSelectedStage(stage)
-          await updateStage({ inquiryId: selectedInquiry.id as any, stage })
+          await updateStage({ inquiryId: selectedInquiry.id, stage })
         }}
         onConvert={async () => {
           if (!selectedInquiry) return
-          await convertToClient({ inquiryId: selectedInquiry.id as any })
+          await convertToClient({ inquiryId: selectedInquiry.id })
           setDrawerOpen(false)
         }}
         onSchedule={() => setBookingOpen(true)}
+        onEdit={() => setEditingInquiry(selectedInquiry)}
+        onDelete={async () => {
+          if (!selectedInquiry) return
+          if (!window.confirm(`Delete ${selectedInquiry.name}?`)) return
+          await removeInquiry({ inquiryId: selectedInquiry.id })
+          setDrawerOpen(false)
+          setSelectedInquiry(null)
+        }}
       />
 
       <InquiryFormDialog
+        key="create-inquiry"
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={(values) => createInquiry(values)}
+      />
+
+      <InquiryFormDialog
+        key={editingInquiry?.id ?? 'edit-inquiry'}
+        open={Boolean(editingInquiry)}
+        onOpenChange={(open) => {
+          if (!open) setEditingInquiry(null)
+        }}
+        title="Edit Inquiry"
+        description="Update the lead details and context."
+        initialData={editingInquiry ? {
+          name: editingInquiry.name,
+          service: editingInquiry.service,
+          email: editingInquiry.email,
+          phone: editingInquiry.phone,
+          budget: editingInquiry.budget,
+          notes: editingInquiry.notes,
+          tags: editingInquiry.tags,
+        } : undefined}
+        onSubmit={(values) =>
+          editingInquiry
+            ? updateInquiry({ inquiryId: editingInquiry.id, ...values })
+            : undefined
+        }
       />
 
       <BookingModal
@@ -138,8 +186,8 @@ export default function InquiriesPage() {
         defaultClientName={selectedInquiry?.name}
         onSubmit={(values) =>
           createBooking({
-            inquiryId: selectedInquiry?.id as any,
-            clientId: values.clientId as any,
+            inquiryId: selectedInquiry?.id,
+            clientId: values.clientId,
             clientName: values.clientName,
             date: values.date,
             startTime: values.startTime,

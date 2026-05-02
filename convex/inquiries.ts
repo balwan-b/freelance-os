@@ -15,6 +15,19 @@ export const list = query({
   handler: async (ctx) => {
     const { user } = await requireCurrentUser(ctx);
     const stages = ["new", "contacted", "qualified", "rejected"] as const;
+
+    // Run all 4 stage queries in parallel instead of serial
+    const results = await Promise.all(
+      stages.map((stage) =>
+        ctx.db
+          .query("inquiries")
+          .withIndex("by_userId_and_stage", (q) =>
+            q.eq("userId", user._id).eq("stage", stage),
+          )
+          .take(50),
+      ),
+    );
+
     const response: Record<(typeof stages)[number], unknown[]> = {
       new: [],
       contacted: [],
@@ -22,21 +35,16 @@ export const list = query({
       rejected: [],
     };
 
-    for (const stage of stages) {
-      const rows = await ctx.db
-        .query("inquiries")
-        .withIndex("by_userId_and_stage", (q) =>
-          q.eq("userId", user._id).eq("stage", stage),
-        )
-        .collect();
-      response[stage] = rows
+    stages.forEach((stage, i) => {
+      response[stage] = results[i]
         .filter((row) => !row.convertedClientId)
         .sort((a, b) => b.receivedOn.localeCompare(a.receivedOn));
-    }
+    });
 
     return response;
   },
 });
+
 
 export const create = mutation({
   args: {
@@ -73,6 +81,46 @@ export const create = mutation({
     });
 
     return inquiryId;
+  },
+});
+
+export const update = mutation({
+  args: {
+    inquiryId: v.id("inquiries"),
+    name: v.optional(v.string()),
+    service: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    budget: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const inquiry = await ctx.db.get(args.inquiryId);
+    if (!inquiry || inquiry.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    const patch: {
+      name?: string;
+      service?: string;
+      email?: string;
+      phone?: string;
+      budget?: string;
+      tags?: string[];
+      notes?: string;
+    } = {};
+
+    if (args.name !== undefined) patch.name = args.name;
+    if (args.service !== undefined) patch.service = args.service;
+    if (args.email !== undefined) patch.email = args.email;
+    if (args.phone !== undefined) patch.phone = args.phone;
+    if (args.budget !== undefined) patch.budget = args.budget;
+    if (args.tags !== undefined) patch.tags = args.tags;
+    if (args.notes !== undefined) patch.notes = args.notes;
+
+    await ctx.db.patch(args.inquiryId, patch);
   },
 });
 
@@ -165,3 +213,49 @@ export const convertToClient = mutation({
     return clientId;
   },
 });
+
+export const remove = mutation({
+  args: {
+    inquiryId: v.id("inquiries"),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const inquiry = await ctx.db.get(args.inquiryId);
+    if (!inquiry || inquiry.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    const notes = await ctx.db
+      .query("notes")
+      .withIndex("by_inquiryId_and_createdOn", (q) => q.eq("inquiryId", inquiry._id))
+      .collect();
+    for (const note of notes) {
+      await ctx.db.delete(note._id);
+    }
+
+    if (inquiry.convertedClientId) {
+      const client = await ctx.db.get(inquiry.convertedClientId);
+      if (client?.sourceInquiryId === inquiry._id) {
+        await ctx.db.patch(client._id, {
+          sourceInquiryId: undefined,
+        });
+      }
+    }
+
+    const userBookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_userId_and_date", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const booking of userBookings) {
+      if (booking.inquiryId === inquiry._id) {
+        await ctx.db.patch(booking._id, {
+          inquiryId: undefined,
+        });
+      }
+    }
+
+    await ctx.db.delete(args.inquiryId);
+  },
+});
+
+

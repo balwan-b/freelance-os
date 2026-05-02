@@ -18,15 +18,18 @@ export default function TasksPage() {
   const tasks = useQuery(api.tasks.list, currentUser ? {} : 'skip')
   const toggleTask = useMutation(api.tasks.toggle)
   const createTask = useMutation(api.tasks.create)
+  const updateTask = useMutation(api.tasks.update)
+  const removeTask = useMutation(api.tasks.remove)
+  type TaskRow = NonNullable<typeof tasks>[number]
 
   const todayTasks = useMemo(
-    () => (tasks ?? []).filter((task: any) => isTodayString(task.dueDate)),
+    () => (tasks ?? []).filter((task: TaskRow) => isTodayString(task.dueDate)),
     [tasks],
   )
 
   const upcomingTasks = useMemo(
     () =>
-      (tasks ?? []).filter((task: any) => {
+      (tasks ?? []).filter((task: TaskRow) => {
         if (!task.dueDate) return false
         return task.dueDate > new Date().toISOString().split('T')[0]
       }),
@@ -61,38 +64,53 @@ export default function TasksPage() {
           <div className="mt-6">
             <TabsContent value="today">
               <TaskList
-                tasks={todayTasks.map((task: any) => ({
+                tasks={todayTasks.map((task: TaskRow) => ({
                   id: task._id,
                   title: task.title,
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onTaskToggle={(id) => toggleTask({ taskId: id })}
                 onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskDelete={async (id) => {
+                  if (!window.confirm('Delete this task?')) return
+                  await removeTask({ taskId: id })
+                }}
               />
             </TabsContent>
             <TabsContent value="upcoming">
               <TaskList
-                tasks={upcomingTasks.map((task: any) => ({
+                tasks={upcomingTasks.map((task: TaskRow) => ({
                   id: task._id,
                   title: task.title,
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onTaskToggle={(id) => toggleTask({ taskId: id })}
                 onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskDelete={async (id) => {
+                  if (!window.confirm('Delete this task?')) return
+                  await removeTask({ taskId: id })
+                }}
               />
             </TabsContent>
             <TabsContent value="all">
               <TaskList
-                tasks={tasks.map((task: any) => ({
+                tasks={tasks.map((task: TaskRow) => ({
                   id: task._id,
                   title: task.title,
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onTaskToggle={(id) => toggleTask({ taskId: id })}
                 onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskDelete={async (id) => {
+                  if (!window.confirm('Delete this task?')) return
+                  await removeTask({ taskId: id })
+                }}
               />
             </TabsContent>
           </div>

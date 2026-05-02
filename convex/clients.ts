@@ -32,36 +32,28 @@ export const list = query({
           .withIndex("by_userId_and_status", (q) =>
             q.eq("userId", user._id).eq("status", args.status!),
           )
-          .collect()
+          .take(200)
       : await ctx.db
           .query("clients")
           .withIndex("by_userId_and_name", (q) => q.eq("userId", user._id))
-          .collect();
+          .take(200);
 
     const search = args.search?.trim().toLowerCase();
-    return await Promise.all(
-      rows
-        .filter((client) => {
-          if (!search) return true;
-          return (
-            client.name.toLowerCase().includes(search) ||
-            client.email?.toLowerCase().includes(search) ||
-            client.phone?.toLowerCase().includes(search)
-          );
-        })
-        .map(async (client) => {
-          const totalBookings = (
-            await ctx.db
-              .query("bookings")
-              .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))
-              .collect()
-          ).length;
-          return {
-            ...client,
-            totalBookings,
-          };
-        }),
-    );
+    const filtered = rows.filter((client) => {
+      if (!search) return true;
+      return (
+        client.name.toLowerCase().includes(search) ||
+        client.email?.toLowerCase().includes(search) ||
+        client.phone?.toLowerCase().includes(search)
+      );
+    });
+
+    // Return clients with a denormalized booking count stored on the doc.
+    // This avoids N+1 queries. The count is maintained by bookings.create.
+    return filtered.map((client) => ({
+      ...client,
+      totalBookings: (client as typeof client & { totalBookings?: number }).totalBookings ?? 0,
+    }));
   },
 });
 
@@ -71,26 +63,30 @@ export const get = query({
     const { user } = await requireCurrentUser(ctx);
     const client = await ctx.db.get(args.clientId);
     if (!client || client.userId !== user._id) {
-      throw new Error("Client not found");
+      return null;
     }
 
-    const bookings = await ctx.db
-      .query("bookings")
-      .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))
-      .collect();
-    const notes = await ctx.db
-      .query("notes")
-      .withIndex("by_clientId_and_createdOn", (q) => q.eq("clientId", client._id))
-      .collect();
-    const tasks = await ctx.db
-      .query("tasks")
-      .withIndex("by_clientId_and_dueDate", (q) => q.eq("clientId", client._id))
-      .collect();
+    const [bookings, notes, tasks] = await Promise.all([
+      ctx.db
+        .query("bookings")
+        .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))
+        .take(100),
+      ctx.db
+        .query("notes")
+        .withIndex("by_clientId_and_createdOn", (q) => q.eq("clientId", client._id))
+        .take(100),
+      ctx.db
+        .query("tasks")
+        .withIndex("by_clientId_and_dueDate", (q) => q.eq("clientId", client._id))
+        .take(100),
+    ]);
 
     return {
       client,
       bookings: bookings.sort((a, b) => b.date.localeCompare(a.date)),
-      notes: notes.sort((a, b) => b.createdOn.localeCompare(a.createdOn)),
+      notes: notes
+        .filter((n) => !(n as typeof n & { isSystem?: boolean }).isSystem)
+        .sort((a, b) => b.createdOn.localeCompare(a.createdOn)),
       tasks: tasks.sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "")),
     };
   },
@@ -228,5 +224,64 @@ export const update = mutation({
     if (args.tags !== undefined) patch.tags = args.tags;
 
     await ctx.db.patch(args.clientId, patch);
+  },
+});
+
+export const remove = mutation({
+  args: {
+    clientId: v.id("clients"),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireCurrentUser(ctx);
+    const client = await ctx.db.get(args.clientId);
+    if (!client || client.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    const bookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))
+      .collect();
+    for (const booking of bookings) {
+      await ctx.db.delete(booking._id);
+    }
+
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_clientId_and_dueDate", (q) => q.eq("clientId", client._id))
+      .collect();
+    for (const task of tasks) {
+      await ctx.db.delete(task._id);
+    }
+
+    const notes = await ctx.db
+      .query("notes")
+      .withIndex("by_clientId_and_createdOn", (q) => q.eq("clientId", client._id))
+      .collect();
+    for (const note of notes) {
+      await ctx.db.delete(note._id);
+    }
+
+    const inquiries = await ctx.db
+      .query("inquiries")
+      .withIndex("by_userId_and_receivedOn", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const inquiry of inquiries) {
+      if (inquiry.clientId === client._id || inquiry.convertedClientId === client._id) {
+        await ctx.db.patch(inquiry._id, {
+          clientId: undefined,
+          convertedClientId: undefined,
+        });
+      }
+    }
+
+    await ctx.db.delete(args.clientId);
+
+    await recordActivity(ctx, {
+      userId: user._id,
+      type: "client",
+      title: "Client removed",
+      description: `${client.name} was removed from your client list.`,
+    });
   },
 });

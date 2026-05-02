@@ -146,6 +146,7 @@ export default defineSchema({
     authorName: v.string(),
     createdOn: v.string(),
   })
+    .index("by_userId", ["userId"])
     .index("by_clientId_and_createdOn", ["clientId", "createdOn"])
     .index("by_inquiryId_and_createdOn", ["inquiryId", "createdOn"]),
 

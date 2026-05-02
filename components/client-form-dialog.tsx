@@ -26,6 +26,16 @@ type ClientStatus = "active" | "inactive" | "archived";
 interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  initialData?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    status: ClientStatus;
+    tags?: string[];
+  };
   onSubmit: (values: {
     name: string;
     email?: string;
@@ -39,27 +49,31 @@ interface ClientFormDialogProps {
 export function ClientFormDialog({
   open,
   onOpenChange,
+  title = "Add Client",
+  description = "Create a client record you can attach bookings, notes, and tasks to.",
+  initialData,
   onSubmit,
 }: ClientFormDialogProps) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [location, setLocation] = useState("");
-  const [tags, setTags] = useState("");
-  const [status, setStatus] = useState<ClientStatus>("active");
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [email, setEmail] = useState(initialData?.email ?? "");
+  const [phone, setPhone] = useState(initialData?.phone ?? "");
+  const [location, setLocation] = useState(initialData?.location ?? "");
+  const [tags, setTags] = useState(initialData?.tags?.join(", ") ?? "");
+  const [status, setStatus] = useState<ClientStatus>(initialData?.status ?? "active");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      setName("");
-      setEmail("");
-      setPhone("");
-      setLocation("");
-      setTags("");
-      setStatus("active");
+    if (open) {
+      setName(initialData?.name ?? "");
+      setEmail(initialData?.email ?? "");
+      setPhone(initialData?.phone ?? "");
+      setLocation(initialData?.location ?? "");
+      setTags(initialData?.tags?.join(", ") ?? "");
+      setStatus(initialData?.status ?? "active");
+    } else {
       setSubmitting(false);
     }
-  }, [open]);
+  }, [open, initialData]);
 
   async function handleSubmit() {
     if (!name.trim()) return;
@@ -83,10 +97,8 @@ export function ClientFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Client</DialogTitle>
-          <DialogDescription>
-            Create a client record you can attach bookings, notes, and tasks to.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
@@ -147,7 +159,7 @@ export function ClientFormDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim() || submitting}>
-            {submitting ? "Saving..." : "Create Client"}
+            {submitting ? "Saving..." : initialData ? "Save Changes" : "Create Client"}
           </Button>
         </DialogFooter>
       </DialogContent>

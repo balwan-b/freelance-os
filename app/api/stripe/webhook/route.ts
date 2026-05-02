@@ -1,9 +1,11 @@
 import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { ConvexHttpClient } from 'convex/browser'
-import { api } from '@/convex/_generated/api'
+import { internal } from '@/convex/_generated/api'
 
 export const runtime = 'nodejs'
+
+const STRIPE_TIMESTAMP_TOLERANCE_SECONDS = 300
 
 function verifyStripeSignature(payload: string, signatureHeader: string, secret: string) {
   const entries = Object.fromEntries(
@@ -16,6 +18,12 @@ function verifyStripeSignature(payload: string, signatureHeader: string, secret:
   const timestamp = entries.t
   const signature = entries.v1
   if (!timestamp || !signature) {
+    return false
+  }
+
+  // Replay-attack protection: reject webhooks older than 5 minutes
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - Number(timestamp)) > STRIPE_TIMESTAMP_TOLERANCE_SECONDS) {
     return false
   }
 
@@ -53,7 +61,7 @@ export async function POST(request: Request) {
 
   if (event.type.startsWith('customer.subscription.') && object) {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL)
-    await convex.mutation(api.billing.syncFromWebhook, {
+    await convex.mutation(internal.billing.syncFromWebhook, {
       clerkUserId: object.metadata?.clerkUserId,
       stripeCustomerId: object.customer,
       stripeSubscriptionId: object.id,

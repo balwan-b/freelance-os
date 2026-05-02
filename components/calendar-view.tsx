@@ -40,6 +40,7 @@ interface CalendarViewProps {
   availability: AvailabilityRule[]
   timezone: string
   onSlotClick: (date: string, time: string) => void
+  onBookingClick?: (booking: Booking) => void
 }
 
 function weekdayIndexFromDate(dateKey: string) {
@@ -210,7 +211,13 @@ export function CalendarView({ bookings, availability, timezone, onSlotClick }: 
                           time={hour}
                           booking={booking}
                           isAvailable={openTimes.has(hour)}
-                          onClick={(time) => onSlotClick(dateKey, time)}
+                          onClick={(time) => {
+                            if (booking) {
+                              onBookingClick?.(booking)
+                            } else {
+                              onSlotClick(dateKey, time)
+                            }
+                          }}
                           isNow={nowInTimeZone.date === dateKey && `${nowInTimeZone.time.slice(0, 2)}:00` === hour}
                         />
                       )
@@ -250,9 +257,13 @@ export function CalendarView({ bookings, availability, timezone, onSlotClick }: 
                     {formatDisplayDate(day, timezone, { day: 'numeric' })}
                   </p>
                   <div className="mt-2 space-y-1">
-                    {dayBookings.length > 0 ? (
+                     {dayBookings.length > 0 ? (
                       dayBookings.map((booking) => (
-                        <div key={booking.id} className="truncate rounded bg-primary/10 p-1 text-[10px] font-medium text-primary">
+                        <div 
+                          key={booking.id} 
+                          className="truncate rounded bg-primary/10 p-1 text-[10px] font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors"
+                          onClick={() => onBookingClick?.(booking)}
+                        >
                           {booking.time} {booking.clientName}
                         </div>
                       ))

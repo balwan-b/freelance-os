@@ -1,7 +1,13 @@
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, Calendar, Video, Briefcase, XCircle, CheckCircle, Check, CalendarDays, X } from 'lucide-react'
+import { Clock, Calendar, Video, Briefcase, XCircle, CheckCircle, Check, CalendarDays, X, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export type BookingStatus = 'upcoming' | 'completed' | 'cancelled'
 export type BookingType = 'call' | 'session' | 'project'
@@ -15,6 +21,8 @@ interface BookingCardProps {
   type: BookingType
   onStatusChange?: (id: string, newStatus: BookingStatus) => void
   onReschedule?: (id: string) => void
+  onEdit?: (id: string) => void
+  onDelete?: (id: string) => void
 }
 
 const statusConfig = {
@@ -47,7 +55,7 @@ const typeConfig = {
   project: { icon: Briefcase, label: 'Project' },
 }
 
-export function BookingCard({ id, clientName, date, time, status, type, onStatusChange, onReschedule }: BookingCardProps) {
+export function BookingCard({ id, clientName, date, time, status, type, onStatusChange, onReschedule, onEdit, onDelete }: BookingCardProps) {
   const statusInfo = statusConfig[status as keyof typeof statusConfig] || statusConfig.upcoming
   const typeInfo = typeConfig[type as keyof typeof typeConfig] || typeConfig.project
   const StatusIcon = statusInfo.icon
@@ -65,13 +73,41 @@ export function BookingCard({ id, clientName, date, time, status, type, onStatus
                 <span className="text-xs font-medium uppercase tracking-wider">{typeInfo.label}</span>
               </div>
             </div>
-            <Badge 
-              variant="outline" 
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight ${statusInfo.text} border-current/20`}
-            >
-              <StatusIcon className="w-3 h-3" />
-              {statusInfo.label}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="outline" 
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight ${statusInfo.text} border-current/20`}
+              >
+                <StatusIcon className="w-3 h-3" />
+                {statusInfo.label}
+              </Badge>
+              {(onEdit || onDelete) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 -mr-2">
+                      <MoreVertical className="w-3.5 h-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(id)}>
+                        <Pencil className="w-3.5 h-3.5 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <DropdownMenuItem 
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                        onClick={() => onDelete(id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-current/5">

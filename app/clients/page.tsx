@@ -46,12 +46,16 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'archived'>('all')
   const [viewType, setViewType] = useState<ViewType>('grid')
   const [createOpen, setCreateOpen] = useState(false)
+  const [editingClientId, setEditingClientId] = useState<string | null>(null)
   const router = useRouter()
   const createClient = useMutation(api.clients.create)
+  const updateClient = useMutation(api.clients.update)
+  const deleteClient = useMutation(api.clients.remove)
   const clients = useQuery(api.clients.list, currentUser ? {
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: searchQuery || undefined,
   } : 'skip')
+  type ClientRow = NonNullable<typeof clients>[number]
 
   if (isLoading || currentUser === null || clients === undefined) {
     return (
@@ -61,9 +65,10 @@ export default function ClientsPage() {
     )
   }
 
-  const activeCount = clients.filter((c: any) => c.status === 'active').length
-  const inactiveCount = clients.filter((c: any) => c.status === 'inactive').length
-  const archivedCount = clients.filter((c: any) => c.status === 'archived').length
+  const activeCount = clients.filter((client: ClientRow) => client.status === 'active').length
+  const inactiveCount = clients.filter((client: ClientRow) => client.status === 'inactive').length
+  const archivedCount = clients.filter((client: ClientRow) => client.status === 'archived').length
+  const editingClient = clients.find((client: ClientRow) => client._id === editingClientId) ?? null
 
   return (
     <DashboardLayout>
@@ -91,7 +96,7 @@ export default function ClientsPage() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
               <SelectTrigger className="w-32 h-9">
                 <SelectValue placeholder="Filter status" />
               </SelectTrigger>
@@ -130,7 +135,7 @@ export default function ClientsPage() {
 
         {viewType === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clients.map((client: any) => (
+            {clients.map((client: ClientRow) => (
               <ClientCard
                 key={client._id}
                 id={client._id}
@@ -140,6 +145,11 @@ export default function ClientsPage() {
                 lastInteraction={toRelativeLabel(client.lastInteractionDate)}
                 initials={client.initials}
                 onClick={() => router.push(`/clients/${client._id}`)}
+                onEdit={() => setEditingClientId(client._id)}
+                onDelete={async () => {
+                  if (!window.confirm(`Delete ${client.name}? This also removes related bookings, tasks, and notes.`)) return
+                  await deleteClient({ clientId: client._id })
+                }}
               />
             ))}
           </div>
@@ -158,7 +168,7 @@ export default function ClientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients.map((client: any) => (
+                {clients.map((client: ClientRow) => (
                   <ClientTableRow
                     key={client._id}
                     id={client._id}
@@ -168,6 +178,11 @@ export default function ClientsPage() {
                     lastInteraction={toRelativeLabel(client.lastInteractionDate)}
                     initials={client.initials}
                     onClick={() => router.push(`/clients/${client._id}`)}
+                    onEdit={() => setEditingClientId(client._id)}
+                    onDelete={async () => {
+                      if (!window.confirm(`Delete ${client.name}? This also removes related bookings, tasks, and notes.`)) return
+                      await deleteClient({ clientId: client._id })
+                    }}
                   />
                 ))}
               </TableBody>
@@ -186,6 +201,21 @@ export default function ClientsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={(values) => createClient(values)}
+      />
+
+      <ClientFormDialog
+        open={Boolean(editingClient)}
+        onOpenChange={(open) => {
+          if (!open) setEditingClientId(null)
+        }}
+        title="Edit Client"
+        description="Update the client profile details."
+        initialData={editingClient ?? undefined}
+        onSubmit={(values) =>
+          editingClient
+            ? updateClient({ clientId: editingClient._id, ...values })
+            : undefined
+        }
       />
     </DashboardLayout>
   )

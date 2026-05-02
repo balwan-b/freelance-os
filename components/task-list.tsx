@@ -10,9 +10,11 @@ interface TaskListProps {
   tasks: Task[]
   onTaskToggle: (id: string) => void
   onAddTask: (title: string) => void
+  onTaskUpdate?: (id: string, title: string) => void
+  onTaskDelete?: (id: string) => void
 }
 
-export function TaskList({ tasks, onTaskToggle, onAddTask }: TaskListProps) {
+export function TaskList({ tasks, onTaskToggle, onAddTask, onTaskUpdate, onTaskDelete }: TaskListProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('')
 
   const handleAdd = (e: React.FormEvent) => {
@@ -47,7 +49,13 @@ export function TaskList({ tasks, onTaskToggle, onAddTask }: TaskListProps) {
       {tasks.length > 0 ? (
         <div className="flex flex-col gap-3">
           {tasks.map((task) => (
-            <TaskItem key={task.id} task={task} onToggle={onTaskToggle} />
+            <TaskItem
+              key={task.id}
+              task={task}
+              onToggle={onTaskToggle}
+              onUpdate={onTaskUpdate}
+              onDelete={onTaskDelete}
+            />
           ))}
         </div>
       ) : (

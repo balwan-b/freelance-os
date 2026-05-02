@@ -3,7 +3,14 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Clock, BookOpen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Clock, BookOpen, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
 export interface Client {
   id: string
@@ -16,6 +23,8 @@ export interface Client {
 
 interface ClientCardProps extends Client {
   onClick?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 const statusColors = {
@@ -30,7 +39,7 @@ const statusLabels = {
   archived: 'Archived',
 }
 
-export function ClientCard({ id, name, status, totalBookings, lastInteraction, initials, onClick }: ClientCardProps) {
+export function ClientCard({ name, status, totalBookings, lastInteraction, initials, onClick, onEdit, onDelete }: ClientCardProps) {
   return (
     <Card
       className="cursor-pointer hover:shadow-md transition-shadow border border-border"
@@ -50,9 +59,34 @@ export function ClientCard({ id, name, status, totalBookings, lastInteraction, i
                 <h3 className="font-semibold text-sm truncate">{name}</h3>
               </div>
             </div>
-            <Badge className={statusColors[status]}>
-              {statusLabels[status]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className={statusColors[status]}>
+                {statusLabels[status]}
+              </Badge>
+              {onEdit || onDelete ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onEdit ? (
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    ) : null}
+                    {onDelete ? (
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); onDelete() }}>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
           </div>
 
           {/* Stats */}

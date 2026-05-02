@@ -28,7 +28,11 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined)
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [editingBooking, setEditingBooking] = useState<any>(null)
   const createBooking = useMutation(api.bookings.create)
+  const updateBooking = useMutation(api.bookings.update)
+  const updateBookingStatus = useMutation(api.bookings.updateStatus)
+  const removeBooking = useMutation(api.bookings.remove)
   const bookings = useQuery(api.bookings.list, currentUser ? {
     status: statusFilter === 'all' ? undefined : statusFilter,
     date: dateFilter ? dateFilter.toISOString().split('T')[0] : undefined,
@@ -94,6 +98,13 @@ export default function BookingsPage() {
                   time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
                   status={booking.status}
                   type={booking.type}
+                  onStatusChange={(id, status) => updateBookingStatus({ bookingId: id as any, status })}
+                  onEdit={() => setEditingBooking(booking)}
+                  onDelete={async (id) => {
+                    if (window.confirm('Are you sure you want to delete this booking?')) {
+                      await removeBooking({ bookingId: id as any })
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -126,18 +137,39 @@ export default function BookingsPage() {
       </div>
 
       <BookingModal
-        isOpen={bookingOpen}
-        onClose={() => setBookingOpen(false)}
+        isOpen={bookingOpen || Boolean(editingBooking)}
+        onClose={() => {
+          setBookingOpen(false)
+          setEditingBooking(null)
+        }}
         clients={clients.map((client: any) => ({ id: client._id, name: client.name }))}
-        onSubmit={(values) =>
-          createBooking({
-            clientId: values.clientId as any,
-            clientName: values.clientName,
-            date: values.date,
-            startTime: values.startTime,
-            type: values.type,
-          })
-        }
+        initialData={editingBooking ? {
+          id: editingBooking._id,
+          clientId: editingBooking.clientId,
+          clientName: editingBooking.clientName,
+          date: editingBooking.date,
+          startTime: editingBooking.startTime,
+          type: editingBooking.type,
+        } : undefined}
+        onSubmit={async (values) => {
+          if (values.id) {
+            await updateBooking({
+              bookingId: values.id as any,
+              clientId: values.clientId as any,
+              date: values.date,
+              startTime: values.startTime,
+              type: values.type,
+            })
+          } else {
+            await createBooking({
+              clientId: values.clientId as any,
+              clientName: values.clientName,
+              date: values.date,
+              startTime: values.startTime,
+              type: values.type,
+            })
+          }
+        }}
       />
     </DashboardLayout>
   )

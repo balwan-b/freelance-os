@@ -70,12 +70,12 @@ export default function TasksPage() {
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id })}
-                onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
-                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onAddTask={async (title) => { await createTask({ title, dueDate: new Date().toISOString().split('T')[0] }); }}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id as any, title })}
                 onTaskDelete={async (id) => {
                   if (!window.confirm('Delete this task?')) return
-                  await removeTask({ taskId: id })
+                  await removeTask({ taskId: id as any })
                 }}
               />
             </TabsContent>
@@ -87,12 +87,12 @@ export default function TasksPage() {
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id })}
-                onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
-                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onAddTask={async (title) => { await createTask({ title, dueDate: new Date().toISOString().split('T')[0] }); }}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id as any, title })}
                 onTaskDelete={async (id) => {
                   if (!window.confirm('Delete this task?')) return
-                  await removeTask({ taskId: id })
+                  await removeTask({ taskId: id as any })
                 }}
               />
             </TabsContent>
@@ -104,12 +104,12 @@ export default function TasksPage() {
                   completed: task.completed,
                   dueDate: task.dueDate,
                 }))}
-                onTaskToggle={(id) => toggleTask({ taskId: id })}
-                onAddTask={(title) => createTask({ title, dueDate: new Date().toISOString().split('T')[0] })}
-                onTaskUpdate={(id, title) => updateTask({ taskId: id, title })}
+                onTaskToggle={(id) => toggleTask({ taskId: id as any })}
+                onAddTask={async (title) => { await createTask({ title, dueDate: new Date().toISOString().split('T')[0] }); }}
+                onTaskUpdate={(id, title) => updateTask({ taskId: id as any, title })}
                 onTaskDelete={async (id) => {
                   if (!window.confirm('Delete this task?')) return
-                  await removeTask({ taskId: id })
+                  await removeTask({ taskId: id as any })
                 }}
               />
             </TabsContent>

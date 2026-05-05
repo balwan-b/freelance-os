@@ -77,7 +77,7 @@ export default function InquiriesPage() {
     if (!inquiryGroups) return []
     return (['new', 'contacted', 'qualified', 'rejected'] as InquiryStage[]).map((stage) => ({
       stage,
-      inquiries: (inquiryGroups[stage] ?? []).map(toInquiry),
+      inquiries: ((inquiryGroups as any)[stage] ?? []).map(toInquiry),
     }))
   }, [inquiryGroups])
 
@@ -131,11 +131,11 @@ export default function InquiriesPage() {
         onStageChange={async (stage) => {
           if (!selectedInquiry) return
           setSelectedStage(stage)
-          await updateStage({ inquiryId: selectedInquiry.id, stage })
+          await updateStage({ inquiryId: selectedInquiry.id as any, stage })
         }}
         onConvert={async () => {
           if (!selectedInquiry) return
-          await convertToClient({ inquiryId: selectedInquiry.id })
+          await convertToClient({ inquiryId: selectedInquiry.id as any })
           setDrawerOpen(false)
         }}
         onSchedule={() => setBookingOpen(true)}
@@ -143,7 +143,7 @@ export default function InquiriesPage() {
         onDelete={async () => {
           if (!selectedInquiry) return
           if (!window.confirm(`Delete ${selectedInquiry.name}?`)) return
-          await removeInquiry({ inquiryId: selectedInquiry.id })
+          await removeInquiry({ inquiryId: selectedInquiry.id as any })
           setDrawerOpen(false)
           setSelectedInquiry(null)
         }}
@@ -153,7 +153,9 @@ export default function InquiriesPage() {
         key="create-inquiry"
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onSubmit={(values) => createInquiry(values)}
+        onSubmit={async (values) => {
+          await createInquiry(values);
+        }}
       />
 
       <InquiryFormDialog
@@ -173,27 +175,27 @@ export default function InquiriesPage() {
           notes: editingInquiry.notes,
           tags: editingInquiry.tags,
         } : undefined}
-        onSubmit={(values) =>
-          editingInquiry
-            ? updateInquiry({ inquiryId: editingInquiry.id, ...values })
-            : undefined
-        }
+        onSubmit={async (values) => {
+          if (editingInquiry) {
+            await updateInquiry({ inquiryId: editingInquiry.id as any, ...values });
+          }
+        }}
       />
 
       <BookingModal
         isOpen={bookingOpen}
         onClose={() => setBookingOpen(false)}
         defaultClientName={selectedInquiry?.name}
-        onSubmit={(values) =>
-          createBooking({
-            inquiryId: selectedInquiry?.id,
-            clientId: values.clientId,
+        onSubmit={async (values) => {
+          await createBooking({
+            inquiryId: selectedInquiry?.id as any,
+            clientId: values.clientId as any,
             clientName: values.clientName,
             date: values.date,
             startTime: values.startTime,
             type: values.type,
           })
-        }
+        }}
       />
     </DashboardLayout>
   )

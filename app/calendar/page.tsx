@@ -129,7 +129,7 @@ export default function CalendarPage() {
               })
             } else {
               await createBooking({
-                clientId: values.clientId,
+                clientId: values.clientId as any,
                 clientName: values.clientName,
                 date: values.date,
                 startTime: values.startTime,

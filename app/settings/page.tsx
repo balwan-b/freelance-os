@@ -70,7 +70,7 @@ export default function SettingsPage() {
 
           <div className="max-w-4xl">
             <TabsContent value="profile" className="focus-visible:outline-none focus-visible:ring-0">
-              <ProfileSettings user={settings.user} settings={settings.settings} />
+              <ProfileSettings user={settings.user} settings={settings.settings ?? undefined} />
             </TabsContent>
             <TabsContent value="availability" className="focus-visible:outline-none focus-visible:ring-0">
               <AvailabilitySettings timezone={settings.user.timezone} availability={settings.availability} />

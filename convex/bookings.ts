@@ -295,6 +295,8 @@ export const updateStatus = mutation({
 export const update = mutation({
   args: {
     bookingId: v.id("bookings"),
+    clientId: v.optional(v.id("clients")),
+    clientName: v.optional(v.string()),
     title: v.optional(v.string()),
     date: v.optional(v.string()),
     startTime: v.optional(v.string()),
@@ -312,6 +314,8 @@ export const update = mutation({
     }
 
     const patch: any = {};
+    if (args.clientId !== undefined) patch.clientId = args.clientId;
+    if (args.clientName !== undefined) patch.clientName = args.clientName;
     if (args.title !== undefined) patch.title = args.title;
     if (args.date !== undefined) patch.date = args.date;
     if (args.startTime !== undefined) patch.startTime = args.startTime;

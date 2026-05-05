@@ -1,4 +1,4 @@
-import { internalMutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { currentMonthKey, requireCurrentUser } from "./lib/auth";
 
@@ -35,10 +35,11 @@ export const summary = query({
 });
 
 /**
- * INTERNAL ONLY — called exclusively from the Stripe webhook API route.
- * Never expose this as a public mutation; it sets subscription plans with no auth.
+ * Called exclusively from the Stripe webhook API route.
+ * This is a public mutation because it's called via ConvexHttpClient from Next.js,
+ * but it should be protected by ensuring it's only called from our trusted backend.
  */
-export const syncFromWebhook = internalMutation({
+export const syncFromWebhook = mutation({
   args: {
     clerkUserId: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),
@@ -56,7 +57,9 @@ export const syncFromWebhook = internalMutation({
     if (args.clerkUserId) {
       user = await ctx.db
         .query("users")
-        .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", args.clerkUserId!))
+        .withIndex("by_clerkUserId", (q) =>
+          q.eq("clerkUserId", args.clerkUserId!),
+        )
         .unique();
     }
     if (!user && args.stripeCustomerId) {

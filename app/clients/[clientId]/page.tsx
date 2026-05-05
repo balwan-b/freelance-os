@@ -72,7 +72,7 @@ export default function ClientHubPage({
   const { currentUser, isLoading } = useCurrentUser();
   const clientData = useQuery(
     api.clients.get,
-    currentUser ? { clientId } : "skip",
+    currentUser ? { clientId: clientId as any } : "skip",
   );
   const toggleTask = useMutation(api.tasks.toggle);
   const createTask = useMutation(api.tasks.create);
@@ -236,7 +236,7 @@ export default function ClientHubPage({
                           "Are you sure you want to delete this client? This cannot be undone.",
                         )
                       ) {
-                        await removeClient({ clientId });
+                        await removeClient({ clientId: clientId as any });
                         router.push("/clients");
                       }
                     }}
@@ -257,7 +257,7 @@ export default function ClientHubPage({
           location={client.location ?? "No location set"}
           status={client.status}
           joinDate={client.joinedOn}
-          avatar={client.imageUrl ?? ""}
+          avatar={(client as any).imageUrl ?? ""}
           onNameChange={(name) => updateClient({ clientId: client._id, name })}
         />
 
@@ -404,7 +404,7 @@ export default function ClientHubPage({
                       client: client.name,
                       dueDate: task.dueDate,
                     }))}
-                    onTaskToggle={(taskId) => toggleTask({ taskId })}
+                    onTaskToggle={(taskId) => toggleTask({ taskId: taskId as any })}
                     onAddTask={(title) =>
                       createTask({
                         title,
@@ -413,11 +413,11 @@ export default function ClientHubPage({
                       })
                     }
                     onTaskUpdate={(taskId, title) =>
-                      updateTask({ taskId, title })
+                       updateTask({ taskId: taskId as any, title })
                     }
                     onTaskDelete={async (taskId) => {
                       if (!window.confirm("Delete this task?")) return;
-                      await removeTask({ taskId });
+                       await removeTask({ taskId: taskId as any });
                     }}
                   />
                 </CardContent>
@@ -557,15 +557,15 @@ export default function ClientHubPage({
         defaultClientId={client._id}
         defaultClientName={client.name}
         clients={[{ id: client._id, name: client.name }]}
-        onSubmit={(values) =>
-          createBooking({
-            clientId: values.clientId ?? client._id,
+        onSubmit={async (values) => {
+          await createBooking({
+            clientId: (values.clientId ?? client._id) as any,
             clientName: values.clientName ?? client.name,
             date: values.date,
             startTime: values.startTime,
             type: values.type,
           })
-        }
+        }}
       />
 
       <NoteFormDialog
@@ -573,7 +573,9 @@ export default function ClientHubPage({
         onOpenChange={setNoteOpen}
         title="Add Client Note"
         description="Capture context so future you always know what happened."
-        onSubmit={(content) => addNote({ clientId: client._id, content })}
+        onSubmit={async (content) => {
+          await addNote({ clientId: client._id, content });
+        }}
       />
 
       <ClientFormDialog

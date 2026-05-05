@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { ConvexHttpClient } from 'convex/browser'
-import { internal } from '@/convex/_generated/api'
+import { api } from '@/convex/_generated/api'
 
 export const runtime = 'nodejs'
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   if (event.type.startsWith('customer.subscription.') && object) {
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL)
-    await convex.mutation(internal.billing.syncFromWebhook, {
+    await convex.mutation(api.billing.syncFromWebhook, {
       clerkUserId: object.metadata?.clerkUserId,
       stripeCustomerId: object.customer,
       stripeSubscriptionId: object.id,

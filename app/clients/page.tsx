@@ -200,7 +200,9 @@ export default function ClientsPage() {
       <ClientFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onSubmit={(values) => createClient(values)}
+        onSubmit={async (values) => {
+          await createClient(values);
+        }}
       />
 
       <ClientFormDialog
@@ -211,11 +213,11 @@ export default function ClientsPage() {
         title="Edit Client"
         description="Update the client profile details."
         initialData={editingClient ?? undefined}
-        onSubmit={(values) =>
-          editingClient
-            ? updateClient({ clientId: editingClient._id, ...values })
-            : undefined
-        }
+        onSubmit={async (values) => {
+          if (editingClient) {
+            await updateClient({ clientId: editingClient._id, ...values });
+          }
+        }}
       />
     </DashboardLayout>
   )

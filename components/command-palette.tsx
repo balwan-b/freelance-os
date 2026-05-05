@@ -216,7 +216,7 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
 
           <CommandGroup heading="Pipeline">
 
-            {(inquiryItems ?? []).map((inquiry: Inquiry) => (
+            {(inquiryItems ?? []).map((inquiry: any) => (
               <CommandItem
                 key={inquiry._id}
                 onSelect={() => openAndClose(() => router.push('/inquiries'))}
@@ -259,15 +259,15 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         clients={(clients || []).map((client: Client) => ({ id: client._id, name: client.name }))}
-        onSubmit={(values) =>
-          createBooking({
-            clientId: values.clientId,
+        onSubmit={async (values) => {
+          await createBooking({
+            clientId: values.clientId as any,
             clientName: values.clientName,
             date: values.date,
             startTime: values.startTime,
             type: values.type,
           })
-        }
+        }}
       />
 
       <ClientFormDialog
@@ -275,7 +275,7 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
         onOpenChange={setIsClientOpen}
         title="Add New Client"
         description="Create a new client to start tracking their projects and bookings."
-        onSubmit={(values) => createClient({ ...values })}
+        onSubmit={async (values) => { await createClient({ ...values }); }}
       />
 
       <InquiryFormDialog
@@ -283,7 +283,7 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
         onOpenChange={setIsInquiryOpen}
         title="Log New Inquiry"
         description="Capture potential new work."
-        onSubmit={(values) => createInquiry({ ...values })}
+        onSubmit={async (values) => { await createInquiry({ ...values }); }}
       />
     </>
   )

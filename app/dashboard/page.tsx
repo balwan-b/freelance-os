@@ -172,7 +172,7 @@ export default function DashboardPage() {
                         time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
                         status={booking.status}
                         type={booking.type}
-                        onStatusChange={(id, status) => updateBookingStatus({ bookingId: id, status })}
+                        onStatusChange={(id, status) => updateBookingStatus({ bookingId: id as any, status })}
                       />
                     ))}
                   </div>

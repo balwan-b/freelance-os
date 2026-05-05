@@ -52,7 +52,7 @@ function formatDisplayDate(date: Date, timezone: string, options: Intl.DateTimeF
   return new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...options }).format(date)
 }
 
-export function CalendarView({ bookings, availability, timezone, onSlotClick }: CalendarViewProps) {
+export function CalendarView({ bookings, availability, timezone, onSlotClick, onBookingClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
 

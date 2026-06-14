@@ -102,7 +102,9 @@ export default defineSchema({
     convertedClientId: v.optional(v.id("clients")),
   })
     .index("by_userId_and_stage", ["userId", "stage"])
-    .index("by_userId_and_receivedOn", ["userId", "receivedOn"]),
+    .index("by_userId_and_receivedOn", ["userId", "receivedOn"])
+    .index("by_clientId", ["clientId"])
+    .index("by_convertedClientId", ["convertedClientId"]),
 
   bookings: defineTable({
     userId: v.id("users"),
@@ -124,7 +126,8 @@ export default defineSchema({
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_status", ["userId", "status"])
     .index("by_userId_and_status_and_date", ["userId", "status", "date"])
-    .index("by_clientId_and_date", ["clientId", "date"]),
+    .index("by_clientId_and_date", ["clientId", "date"])
+    .index("by_inquiryId", ["inquiryId"]),
 
   tasks: defineTable({
     userId: v.id("users"),

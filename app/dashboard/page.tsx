@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { DashboardLayout } from '@/components/dashboard-layout'
+import { DashboardSkeleton } from '@/components/dashboard-skeleton'
 import { PageHeader } from '@/components/page-header'
 import { BookingCard } from '@/components/booking-card'
 import { ActivityFeed } from '@/components/activity-feed'
@@ -15,7 +16,6 @@ import {
   ArrowRight,
   CalendarClock,
   CheckCheck,
-  MessageSquare,
   Search,
   TrendingUp,
 } from 'lucide-react'
@@ -64,11 +64,7 @@ export default function DashboardPage() {
   type Notification = NonNullable<typeof currentUser>['unreadNotifications'][number]
 
   if (isLoading || currentUser === null || overview === undefined) {
-    return (
-      <DashboardLayout>
-        <div className="py-20 text-center text-muted-foreground">Loading dashboard...</div>
-      </DashboardLayout>
-    )
+    return <DashboardSkeleton />
   }
 
   const unreadNotifications = currentUser.unreadNotifications ?? []
@@ -172,7 +168,9 @@ export default function DashboardPage() {
                         time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
                         status={booking.status}
                         type={booking.type}
-                        onStatusChange={(id, status) => updateBookingStatus({ bookingId: id as any, status })}
+                        onStatusChange={(_, status) =>
+                          updateBookingStatus({ bookingId: booking._id, status })
+                        }
                       />
                     ))}
                   </div>

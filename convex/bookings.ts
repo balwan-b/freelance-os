@@ -2,13 +2,18 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCurrentUser } from "./lib/auth";
 import { recordActivity } from "./lib/activity";
-import { enforcePlanLimit, incrementUsage } from "./lib/billing";
+import {
+  decrementUsageIfCurrentMonth,
+  enforcePlanLimit,
+  incrementUsage,
+} from "./lib/billing";
 import {
   assertBookingAvailability,
   getAvailableSlotsForDate,
   getDefaultEndTime,
   getAvailabilityRules,
 } from "./lib/scheduling";
+import { getInitials } from "./lib/utils";
 
 const bookingStatusValidator = v.union(
   v.literal("upcoming"),
@@ -26,6 +31,9 @@ function endTimeFrom(startTime: string) {
   return getDefaultEndTime(startTime);
 }
 
+const MAX_LIST_BOOKINGS = 200;
+const MAX_CALENDAR_BOOKINGS = 366;
+
 export const list = query({
   args: {
     status: v.optional(bookingStatusValidator),
@@ -41,26 +49,26 @@ export const list = query({
         .withIndex("by_userId_and_status_and_date", (q) =>
           q.eq("userId", user._id).eq("status", args.status!).eq("date", args.date!),
         )
-        .collect();
+        .take(MAX_LIST_BOOKINGS);
     } else if (args.status) {
       rows = await ctx.db
         .query("bookings")
         .withIndex("by_userId_and_status", (q) =>
           q.eq("userId", user._id).eq("status", args.status!),
         )
-        .collect();
+        .take(MAX_LIST_BOOKINGS);
     } else if (args.date) {
       rows = await ctx.db
         .query("bookings")
         .withIndex("by_userId_and_date", (q) =>
           q.eq("userId", user._id).eq("date", args.date!),
         )
-        .collect();
+        .take(MAX_LIST_BOOKINGS);
     } else {
       rows = await ctx.db
         .query("bookings")
         .withIndex("by_userId_and_date", (q) => q.eq("userId", user._id))
-        .collect();
+        .take(MAX_LIST_BOOKINGS);
     }
 
     return rows.sort((a, b) => {
@@ -80,7 +88,7 @@ export const calendar = query({
       .withIndex("by_userId_and_date", (q) =>
         q.eq("userId", user._id).gte("date", args.from).lte("date", args.to),
       )
-      .collect();
+      .take(MAX_CALENDAR_BOOKINGS);
     return rows.sort((a, b) => {
       const left = a.startsAtUtc ?? new Date(`${a.date}T${a.startTime}:00`).getTime();
       const right = b.startsAtUtc ?? new Date(`${b.date}T${b.startTime}:00`).getTime();
@@ -102,7 +110,7 @@ export const availability = query({
       .withIndex("by_userId_and_date", (q) =>
         q.eq("userId", user._id).gte("date", args.from).lte("date", args.to),
       )
-      .collect();
+      .take(MAX_CALENDAR_BOOKINGS);
 
     const slotsByDate: Record<string, string[]> = {};
     let cursor = args.from;
@@ -164,12 +172,7 @@ export const create = mutation({
           clientId = inquiry.convertedClientId;
           clientName = inquiry.name;
         } else {
-          const initials = inquiry.name
-            .split(" ")
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((part) => part[0]!.toUpperCase())
-            .join("");
+          await enforcePlanLimit(ctx, user._id, "clientCount");
           clientId = await ctx.db.insert("clients", {
             userId: user._id,
             name: inquiry.name,
@@ -178,7 +181,7 @@ export const create = mutation({
             location: undefined,
             status: "active",
             tags: inquiry.tags,
-            initials,
+            initials: getInitials(inquiry.name),
             sourceInquiryId: inquiry._id,
             joinedOn: args.date,
             lastInteractionDate: args.date,
@@ -188,15 +191,11 @@ export const create = mutation({
             convertedClientId: clientId,
             stage: "qualified",
           });
+          await incrementUsage(ctx, user._id, "clientCount");
           clientName = inquiry.name;
         }
       } else if (clientName) {
-        const initials = clientName
-          .split(" ")
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((part) => part[0]!.toUpperCase())
-          .join("");
+        await enforcePlanLimit(ctx, user._id, "clientCount");
         clientId = await ctx.db.insert("clients", {
           userId: user._id,
           name: clientName,
@@ -205,11 +204,12 @@ export const create = mutation({
           location: undefined,
           status: "active",
           tags: [],
-          initials,
+          initials: getInitials(clientName),
           sourceInquiryId: undefined,
           joinedOn: args.date,
           lastInteractionDate: args.date,
         });
+        await incrementUsage(ctx, user._id, "clientCount");
       }
     }
 
@@ -313,7 +313,18 @@ export const update = mutation({
       throw new Error("Unauthorized");
     }
 
-    const patch: any = {};
+    const patch: {
+      clientId?: typeof args.clientId;
+      clientName?: string;
+      title?: string;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      type?: "call" | "session" | "project";
+      amountCents?: number;
+      notes?: string;
+      status?: "upcoming" | "completed" | "cancelled";
+    } = {};
     if (args.clientId !== undefined) patch.clientId = args.clientId;
     if (args.clientName !== undefined) patch.clientName = args.clientName;
     if (args.title !== undefined) patch.title = args.title;
@@ -345,6 +356,12 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(args.bookingId);
+    await decrementUsageIfCurrentMonth(
+      ctx,
+      user._id,
+      "bookingCount",
+      booking._creationTime,
+    );
 
     await recordActivity(ctx, {
       userId: user._id,

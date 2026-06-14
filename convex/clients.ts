@@ -2,22 +2,18 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCurrentUser } from "./lib/auth";
 import { recordActivity } from "./lib/activity";
-import { enforcePlanLimit, incrementUsage } from "./lib/billing";
+import {
+  decrementUsageIfCurrentMonth,
+  enforcePlanLimit,
+  incrementUsage,
+} from "./lib/billing";
+import { getInitials } from "./lib/utils";
 
 const clientStatusValidator = v.union(
   v.literal("active"),
   v.literal("inactive"),
   v.literal("archived"),
 );
-
-function initialsFor(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
-}
 
 export const list = query({
   args: {
@@ -115,7 +111,7 @@ export const create = mutation({
       location: args.location,
       status: args.status ?? "active",
       tags: args.tags ?? [],
-      initials: initialsFor(args.name),
+      initials: getInitials(args.name),
       sourceInquiryId: args.sourceInquiryId,
       joinedOn,
       lastInteractionDate: joinedOn,
@@ -215,7 +211,7 @@ export const update = mutation({
 
     if (args.name !== undefined) {
       patch.name = args.name;
-      patch.initials = initialsFor(args.name);
+      patch.initials = getInitials(args.name);
     }
     if (args.email !== undefined) patch.email = args.email;
     if (args.phone !== undefined) patch.phone = args.phone;
@@ -238,44 +234,53 @@ export const remove = mutation({
       throw new Error("Unauthorized");
     }
 
-    const bookings = await ctx.db
+    for await (const booking of ctx.db
       .query("bookings")
-      .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))
-      .collect();
-    for (const booking of bookings) {
+      .withIndex("by_clientId_and_date", (q) => q.eq("clientId", client._id))) {
       await ctx.db.delete(booking._id);
+      await decrementUsageIfCurrentMonth(
+        ctx,
+        user._id,
+        "bookingCount",
+        booking._creationTime,
+      );
     }
 
-    const tasks = await ctx.db
+    for await (const task of ctx.db
       .query("tasks")
-      .withIndex("by_clientId_and_dueDate", (q) => q.eq("clientId", client._id))
-      .collect();
-    for (const task of tasks) {
+      .withIndex("by_clientId_and_dueDate", (q) => q.eq("clientId", client._id))) {
       await ctx.db.delete(task._id);
     }
 
-    const notes = await ctx.db
+    for await (const note of ctx.db
       .query("notes")
-      .withIndex("by_clientId_and_createdOn", (q) => q.eq("clientId", client._id))
-      .collect();
-    for (const note of notes) {
+      .withIndex("by_clientId_and_createdOn", (q) => q.eq("clientId", client._id))) {
       await ctx.db.delete(note._id);
     }
 
-    const inquiries = await ctx.db
+    for await (const inquiry of ctx.db
       .query("inquiries")
-      .withIndex("by_userId_and_receivedOn", (q) => q.eq("userId", user._id))
-      .collect();
-    for (const inquiry of inquiries) {
-      if (inquiry.clientId === client._id || inquiry.convertedClientId === client._id) {
-        await ctx.db.patch(inquiry._id, {
-          clientId: undefined,
-          convertedClientId: undefined,
-        });
-      }
+      .withIndex("by_clientId", (q) => q.eq("clientId", client._id))) {
+      await ctx.db.patch(inquiry._id, {
+        clientId: undefined,
+      });
+    }
+
+    for await (const inquiry of ctx.db
+      .query("inquiries")
+      .withIndex("by_convertedClientId", (q) => q.eq("convertedClientId", client._id))) {
+      await ctx.db.patch(inquiry._id, {
+        convertedClientId: undefined,
+      });
     }
 
     await ctx.db.delete(args.clientId);
+    await decrementUsageIfCurrentMonth(
+      ctx,
+      user._id,
+      "clientCount",
+      client._creationTime,
+    );
 
     await recordActivity(ctx, {
       userId: user._id,

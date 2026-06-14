@@ -2,6 +2,8 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCurrentUser } from "./lib/auth";
 import { recordActivity } from "./lib/activity";
+import { enforcePlanLimit, incrementUsage } from "./lib/billing";
+import { getInitials } from "./lib/utils";
 
 const inquiryStageValidator = v.union(
   v.literal("new"),
@@ -176,12 +178,7 @@ export const convertToClient = mutation({
       return inquiry.convertedClientId;
     }
 
-    const initials = inquiry.name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]!.toUpperCase())
-      .join("");
+    await enforcePlanLimit(ctx, user._id, "clientCount");
 
     const clientId = await ctx.db.insert("clients", {
       userId: user._id,
@@ -191,7 +188,7 @@ export const convertToClient = mutation({
       location: undefined,
       status: "active",
       tags: inquiry.tags,
-      initials,
+      initials: getInitials(inquiry.name),
       sourceInquiryId: inquiry._id,
       joinedOn: new Date().toISOString().slice(0, 10),
       lastInteractionDate: new Date().toISOString().slice(0, 10),
@@ -209,6 +206,7 @@ export const convertToClient = mutation({
       title: "Inquiry converted",
       description: `${inquiry.name} was converted into a client.`,
     });
+    await incrementUsage(ctx, user._id, "clientCount");
 
     return clientId;
   },
@@ -225,11 +223,9 @@ export const remove = mutation({
       throw new Error("Unauthorized");
     }
 
-    const notes = await ctx.db
+    for await (const note of ctx.db
       .query("notes")
-      .withIndex("by_inquiryId_and_createdOn", (q) => q.eq("inquiryId", inquiry._id))
-      .collect();
-    for (const note of notes) {
+      .withIndex("by_inquiryId_and_createdOn", (q) => q.eq("inquiryId", inquiry._id))) {
       await ctx.db.delete(note._id);
     }
 
@@ -242,20 +238,15 @@ export const remove = mutation({
       }
     }
 
-    const userBookings = await ctx.db
+    for await (const booking of ctx.db
       .query("bookings")
-      .withIndex("by_userId_and_date", (q) => q.eq("userId", user._id))
-      .collect();
-    for (const booking of userBookings) {
-      if (booking.inquiryId === inquiry._id) {
-        await ctx.db.patch(booking._id, {
-          inquiryId: undefined,
-        });
-      }
+      .withIndex("by_inquiryId", (q) => q.eq("inquiryId", inquiry._id))) {
+      await ctx.db.patch(booking._id, {
+        inquiryId: undefined,
+      });
     }
 
     await ctx.db.delete(args.inquiryId);
   },
 });
-
 

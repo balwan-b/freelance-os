@@ -45,7 +45,7 @@ export async function getAvailabilityRules(
   const rules = await ctx.db
     .query("availabilityRules")
     .withIndex("by_userId_and_dayOfWeek", (q) => q.eq("userId", userId))
-    .collect();
+    .take(7);
 
   return rules.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
 }
@@ -82,7 +82,7 @@ async function getPotentiallyConflictingBookings(
   return await ctx.db
     .query("bookings")
     .withIndex("by_userId_and_date", (q) => q.eq("userId", userId).eq("date", date))
-    .collect();
+    .take(100);
 }
 
 export async function assertBookingAvailability(

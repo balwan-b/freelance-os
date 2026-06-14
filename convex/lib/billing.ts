@@ -51,6 +51,34 @@ export async function incrementUsage(
   });
 }
 
+export async function decrementUsage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  key: "clientCount" | "bookingCount",
+) {
+  const counter = await getUsageCounter(ctx, userId);
+  if (!counter || counter[key] <= 0) {
+    return;
+  }
+
+  await ctx.db.patch(counter._id, {
+    [key]: counter[key] - 1,
+  });
+}
+
+export async function decrementUsageIfCurrentMonth(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  key: "clientCount" | "bookingCount",
+  creationTime: number,
+) {
+  if (currentMonthKey(new Date(creationTime)) !== currentMonthKey()) {
+    return;
+  }
+
+  await decrementUsage(ctx, userId, key);
+}
+
 export async function enforcePlanLimit(
   ctx: MutationCtx,
   userId: Id<"users">,

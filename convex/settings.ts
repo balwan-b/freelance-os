@@ -28,7 +28,7 @@ export const get = query({
     const availability = await ctx.db
       .query("availabilityRules")
       .withIndex("by_userId_and_dayOfWeek", (q) => q.eq("userId", user._id))
-      .collect();
+      .take(7);
     const subscription = await ctx.db
       .query("subscriptions")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))

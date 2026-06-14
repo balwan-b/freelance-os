@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { currentMonthKey, requireCurrentUser } from "./lib/auth";
 
@@ -35,11 +35,10 @@ export const summary = query({
 });
 
 /**
- * Called exclusively from the Stripe webhook API route.
- * This is a public mutation because it's called via ConvexHttpClient from Next.js,
- * but it should be protected by ensuring it's only called from our trusted backend.
+ * Called exclusively from the Stripe webhook HTTP endpoint.
+ * This mutation stays internal so billing state is never writable from the public API surface.
  */
-export const syncFromWebhook = mutation({
+export const syncFromWebhookInternal = internalMutation({
   args: {
     clerkUserId: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),

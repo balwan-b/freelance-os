@@ -1,51 +1,77 @@
-# Welcome to your Convex + Next.js + Clerk app
+# Freelance OS
 
-This is a [Convex](https://convex.dev/) project created with [`npm create convex`](https://www.npmjs.com/package/create-convex).
+Freelance OS is a full-stack operating system for solo service businesses. It combines lightweight CRM, inquiry intake, booking orchestration, task tracking, and subscription-aware limits in one realtime workspace so freelancers can run day-to-day operations without stitching together multiple tools.
 
-After the initial setup (<2 minutes) you'll have a working full-stack app using:
+## What it does
 
-- Convex as your backend (database, server logic)
-- [React](https://react.dev/) as your frontend (web page interactivity)
-- [Next.js](https://nextjs.org/) for optimized web hosting and page routing
-- [Tailwind](https://tailwindcss.com/) for building great looking accessible UI
-- [Clerk](https://clerk.com/) for authentication
+- Tracks leads from inquiry to conversion
+- Manages clients, notes, and follow-up work
+- Schedules bookings with timezone-aware availability checks
+- Surfaces a daily dashboard for bookings, tasks, and activity
+- Gates premium workflows with Clerk-authenticated Convex + Stripe billing
 
-## Get started
+## Stack
 
-If you just cloned this codebase and didn't use `npm create convex`, run:
+- `Next.js 16` for the product UI and authenticated route handlers
+- `Convex` for database, queries, mutations, actions, and HTTP endpoints
+- `Clerk` for authentication and identity
+- `Tailwind CSS` + Radix primitives for the UI layer
 
+## Architecture
+
+The frontend is a thin Next.js client over a Convex backend. Product state lives in Convex tables such as `clients`, `inquiries`, `bookings`, `tasks`, `notes`, `subscriptions`, and `usageCounters`. UI screens subscribe to Convex queries for realtime updates, while writes flow through authenticated mutations.
+
+Stripe subscription sync is handled through a Convex HTTP endpoint at `/stripe/webhook`, which verifies the webhook signature and then writes through an internal Convex mutation. This keeps billing state changes off the public mutation surface.
+
+## Core data model
+
+- `users`: profile, timezone, onboarding state, auth linkage
+- `userSettings`: profile extras and notification preferences
+- `availabilityRules`: weekly scheduling windows per user
+- `inquiries`: inbound leads and qualification state
+- `clients`: converted or manually created customer records
+- `bookings`: scheduled work, status, pricing, and normalized UTC timestamps
+- `tasks`: lightweight operational todo items
+- `notes`: timeline notes attached to clients or inquiries
+- `subscriptions`: Stripe-backed plan state
+- `usageCounters`: current-month plan enforcement counters
+
+## Local setup
+
+1. Install dependencies with `pnpm install`.
+2. Create the required environment variables for Next.js, Clerk, Convex, and Stripe.
+3. Start the app with `pnpm dev`.
+
+Typical env vars:
+
+```bash
+NEXT_PUBLIC_CONVEX_URL=
+NEXT_PUBLIC_APP_URL=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_JWT_ISSUER_DOMAIN=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID_PRO=
 ```
-npm install
-npm run dev
+
+## Stripe webhook setup
+
+Point Stripe at:
+
+```text
+https://<your-convex-deployment>/stripe/webhook
 ```
 
-If you're reading this README on GitHub and want to use this template, run:
+The legacy Next.js webhook route at `app/api/stripe/webhook` remains as a compatibility proxy, but the primary integration should target the Convex HTTP endpoint directly.
 
-```
-npm create convex@latest -- -t nextjs-clerk
-```
+## Production notes
 
-Then:
+- Billing mutations are internal-only; public clients cannot self-upgrade by invoking a mutation directly.
+- Foreign-key indexes support cascading cleanup for inquiry and client deletes.
+- Large list queries are now bounded to avoid unbounded `.collect()` reads in common UI paths.
+- Usage counters decrement when tracked clients or bookings created in the current billing month are removed.
 
-1. Open your app. There should be a "Claim your application" button from Clerk in the bottom right of your app.
-2. Follow the steps to claim your application and link it to this app.
-3. Follow step 3 in the [Convex Clerk onboarding guide](https://docs.convex.dev/auth/clerk#get-started) to create a Convex JWT template.
-4. Uncomment the Clerk provider in `convex/auth.config.ts`
-5. Paste the Issuer URL as `CLERK_JWT_ISSUER_DOMAIN` to your dev deployment environment variable settings on the Convex dashboard (see [docs](https://docs.convex.dev/auth/clerk#configuring-dev-and-prod-instances))
+## Recruiter-friendly overview
 
-If you want to sync Clerk user data via webhooks, check out this [example repo](https://github.com/thomasballinger/convex-clerk-users-table/).
-
-## Learn more
-
-To learn more about developing your project with Convex, check out:
-
-- The [Tour of Convex](https://docs.convex.dev/get-started) for a thorough introduction to Convex principles.
-- The rest of [Convex docs](https://docs.convex.dev/) to learn about all Convex features.
-- [Stack](https://stack.convex.dev/) for in-depth articles on advanced topics.
-
-## Join the community
-
-Join thousands of developers building full-stack apps with Convex:
-
-- Join the [Convex Discord community](https://convex.dev/community) to get help in real-time.
-- Follow [Convex on GitHub](https://github.com/get-convex/), star and contribute to the open-source implementation of Convex.
+This project is meant to demonstrate product thinking as much as implementation skill: auth-aware backend design, realtime state management, defensive billing workflows, timezone-safe scheduling, and a polished operator dashboard built around freelancer workflows instead of generic CRUD pages.

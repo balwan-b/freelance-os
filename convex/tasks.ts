@@ -10,7 +10,7 @@ export const list = query({
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_userId_and_dueDate", (q) => q.eq("userId", user._id))
-      .collect();
+      .take(200);
     return tasks.sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
   },
 });
@@ -108,5 +108,4 @@ export const remove = mutation({
     await ctx.db.delete(args.taskId);
   },
 });
-
 

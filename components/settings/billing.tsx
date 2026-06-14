@@ -6,9 +6,22 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, CreditCard, Zap } from 'lucide-react'
 
+type BillingSubscription = {
+  plan: 'free' | 'pro'
+  currentPeriodEnd?: string
+  stripeCustomerId?: string
+  paymentMethodBrand?: string
+  paymentMethodLast4?: string
+}
+
+type BillingUsage = {
+  bookingCount: number
+  clientCount: number
+}
+
 interface BillingSettingsProps {
-  subscription?: any
-  usage?: any
+  subscription?: BillingSubscription | null
+  usage?: BillingUsage | null
 }
 
 export function BillingSettings({ subscription, usage }: BillingSettingsProps) {

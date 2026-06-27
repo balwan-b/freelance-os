@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { displayNameFromIdentity } from "./lib/auth";
 
@@ -123,6 +123,18 @@ export const current = query({
       subscription,
       unreadNotifications,
     };
+  },
+});
+
+export const getByTokenIdentifierInternal = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) =>
+        q.eq("tokenIdentifier", args.tokenIdentifier),
+      )
+      .unique();
   },
 });
 

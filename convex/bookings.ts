@@ -313,8 +313,42 @@ export const update = mutation({
       throw new Error("Unauthorized");
     }
 
+    let resolvedClientId = booking.clientId;
+    let resolvedClientName = booking.clientName;
+
+    if (args.clientId !== undefined) {
+      const client = await ctx.db.get(args.clientId);
+      if (!client || client.userId !== user._id) {
+        throw new Error("Client not found");
+      }
+      resolvedClientId = client._id;
+      resolvedClientName = client.name;
+    } else if (booking.clientId) {
+      const existingClient = await ctx.db.get(booking.clientId);
+      if (existingClient?.userId === user._id) {
+        resolvedClientName = existingClient.name;
+      }
+    } else if (args.clientName !== undefined) {
+      resolvedClientName = args.clientName;
+    }
+
+    const nextDate = args.date ?? booking.date;
+    const nextStartTime = args.startTime ?? booking.startTime;
+    const nextEndTime = args.endTime ?? booking.endTime;
+
+    const availability = await assertBookingAvailability(
+      ctx,
+      user,
+      {
+        date: nextDate,
+        startTime: nextStartTime,
+        endTime: nextEndTime,
+      },
+      booking._id,
+    );
+
     const patch: {
-      clientId?: typeof args.clientId;
+      clientId?: typeof booking.clientId;
       clientName?: string;
       title?: string;
       date?: string;
@@ -324,21 +358,25 @@ export const update = mutation({
       amountCents?: number;
       notes?: string;
       status?: "upcoming" | "completed" | "cancelled";
+      bookingTimezone?: string;
+      startsAtUtc?: number;
+      endsAtUtc?: number;
     } = {};
-    if (args.clientId !== undefined) patch.clientId = args.clientId;
-    if (args.clientName !== undefined) patch.clientName = args.clientName;
+    if (args.clientId !== undefined) patch.clientId = resolvedClientId;
+    if (args.clientId !== undefined || args.clientName !== undefined) {
+      patch.clientName = resolvedClientName;
+    }
     if (args.title !== undefined) patch.title = args.title;
-    if (args.date !== undefined) patch.date = args.date;
-    if (args.startTime !== undefined) patch.startTime = args.startTime;
-    if (args.endTime !== undefined) patch.endTime = args.endTime;
+    if (args.date !== undefined) patch.date = nextDate;
+    if (args.startTime !== undefined) patch.startTime = nextStartTime;
+    if (args.endTime !== undefined) patch.endTime = availability.endTime;
     if (args.type !== undefined) patch.type = args.type;
     if (args.amountCents !== undefined) patch.amountCents = args.amountCents;
     if (args.notes !== undefined) patch.notes = args.notes;
     if (args.status !== undefined) patch.status = args.status;
-
-    // If date/time changed, we might need to re-calculate startsAtUtc/endsAtUtc
-    // For simplicity, we assume the UI provides corrected values or handles it.
-    // If availability logic is needed, we'd call assertBookingAvailability here.
+    patch.bookingTimezone = availability.bookingTimeZone;
+    patch.startsAtUtc = availability.startsAtUtc;
+    patch.endsAtUtc = availability.endsAtUtc;
 
     await ctx.db.patch(args.bookingId, patch);
   },

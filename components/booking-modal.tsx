@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import type { Id } from '@/convex/_generated/dataModel'
 import {
   Dialog,
   DialogContent,
@@ -26,22 +27,22 @@ interface BookingModalProps {
   onClose: () => void
   selectedDate?: string
   selectedTime?: string
-  clients?: Array<{ id: string; name: string }>
-  defaultClientId?: string
+  clients?: Array<{ id: Id<'clients'>; name: string }>
+  defaultClientId?: Id<'clients'>
   defaultClientName?: string
   timezone?: string
   availableTimes?: string[]
   initialData?: {
-    id: string
-    clientId?: string
+    id: Id<'bookings'>
+    clientId?: Id<'clients'>
     clientName?: string
     date: string
     startTime: string
     type: 'call' | 'session' | 'project'
   }
   onSubmit?: (values: {
-    id?: string
-    clientId?: string
+    id?: Id<'bookings'>
+    clientId?: Id<'clients'>
     clientName?: string
     date: string
     startTime: string

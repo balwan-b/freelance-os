@@ -11,9 +11,21 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "freelance-os",
+  title: "Freelance OS",
   description:
-    "Operating system for freelancers. Manage inquiries, clients, and projects in one place.",
+    "A focused CRM, booking, and workflow workspace for solo service businesses.",
+  openGraph: {
+    title: "Freelance OS",
+    description:
+      "A focused CRM, booking, and workflow workspace for solo service businesses.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Freelance OS",
+    description:
+      "A focused CRM, booking, and workflow workspace for solo service businesses.",
+  },
   icons: {
     icon: [
       {
@@ -37,7 +49,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({

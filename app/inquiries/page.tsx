@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import type { Id } from '@/convex/_generated/dataModel'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/page-header'
 import { PipelineColumn } from '@/components/pipeline-column'
@@ -77,7 +78,7 @@ export default function InquiriesPage() {
     if (!inquiryGroups) return []
     return (['new', 'contacted', 'qualified', 'rejected'] as InquiryStage[]).map((stage) => ({
       stage,
-      inquiries: ((inquiryGroups as any)[stage] ?? []).map(toInquiry),
+      inquiries: (inquiryGroups[stage] ?? []).map(toInquiry),
     }))
   }, [inquiryGroups])
 
@@ -131,11 +132,11 @@ export default function InquiriesPage() {
         onStageChange={async (stage) => {
           if (!selectedInquiry) return
           setSelectedStage(stage)
-          await updateStage({ inquiryId: selectedInquiry.id as any, stage })
+          await updateStage({ inquiryId: selectedInquiry.id as Id<'inquiries'>, stage })
         }}
         onConvert={async () => {
           if (!selectedInquiry) return
-          await convertToClient({ inquiryId: selectedInquiry.id as any })
+          await convertToClient({ inquiryId: selectedInquiry.id as Id<'inquiries'> })
           setDrawerOpen(false)
         }}
         onSchedule={() => setBookingOpen(true)}
@@ -143,7 +144,7 @@ export default function InquiriesPage() {
         onDelete={async () => {
           if (!selectedInquiry) return
           if (!window.confirm(`Delete ${selectedInquiry.name}?`)) return
-          await removeInquiry({ inquiryId: selectedInquiry.id as any })
+          await removeInquiry({ inquiryId: selectedInquiry.id as Id<'inquiries'> })
           setDrawerOpen(false)
           setSelectedInquiry(null)
         }}
@@ -177,7 +178,7 @@ export default function InquiriesPage() {
         } : undefined}
         onSubmit={async (values) => {
           if (editingInquiry) {
-            await updateInquiry({ inquiryId: editingInquiry.id as any, ...values });
+            await updateInquiry({ inquiryId: editingInquiry.id as Id<'inquiries'>, ...values });
           }
         }}
       />
@@ -188,8 +189,8 @@ export default function InquiriesPage() {
         defaultClientName={selectedInquiry?.name}
         onSubmit={async (values) => {
           await createBooking({
-            inquiryId: selectedInquiry?.id as any,
-            clientId: values.clientId as any,
+            inquiryId: selectedInquiry?.id as Id<'inquiries'> | undefined,
+            clientId: values.clientId,
             clientName: values.clientName,
             date: values.date,
             startTime: values.startTime,

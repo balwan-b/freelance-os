@@ -65,7 +65,7 @@ export function AppSidebar({ isCollapsed, onToggle, isMobileOpen, onMobileClose 
       `}
       >
         <div className={`flex items-center justify-between px-6 py-8 ${isCollapsed ? 'flex-col gap-4' : ''}`}>
-          {!isCollapsed && <h1 className="text-xl font-bold text-foreground">freelance-os</h1>}
+          {!isCollapsed && <h1 className="text-xl font-bold text-foreground">Freelance OS</h1>}
           <Button variant="ghost" size="icon" onClick={onToggle} className="hidden md:flex">
             {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </Button>

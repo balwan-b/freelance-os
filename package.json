@@ -6,7 +6,8 @@
     "dev": "convex dev --start 'next dev'",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.2",
@@ -73,11 +74,5 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@tailwindcss/oxide"
-    ]
   }
 }

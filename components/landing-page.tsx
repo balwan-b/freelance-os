@@ -49,7 +49,7 @@ export function LandingPage({ userId }: LandingPageProps) {
               <Zap className="h-4 w-4" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-950">
-              freelance-os
+              Freelance OS
             </span>
           </Link>
           <nav className="flex items-center gap-2 sm:gap-6">
@@ -250,30 +250,18 @@ export function LandingPage({ userId }: LandingPageProps) {
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-slate-950" />
-              <span className="font-bold text-slate-950">freelance-os</span>
+              <span className="font-bold text-slate-950">Freelance OS</span>
             </div>
             <nav className="flex gap-8 text-sm font-medium text-slate-500">
-              <Link
-                href="/sign-in"
-                className="transition-colors hover:text-slate-950"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
-                className="transition-colors hover:text-slate-950"
-              >
-                Get started
-              </Link>
-              <a href="#" className="transition-colors hover:text-slate-950">
-                Terms
-              </a>
-              <a href="#" className="transition-colors hover:text-slate-950">
+              <Link href="/privacy" className="transition-colors hover:text-slate-950">
                 Privacy
-              </a>
+              </Link>
+              <Link href="/terms" className="transition-colors hover:text-slate-950">
+                Terms
+              </Link>
             </nav>
             <p className="text-sm text-slate-400">
-              &copy; {new Date().getFullYear()} freelance-os.
+              &copy; {new Date().getFullYear()} Freelance OS.
             </p>
           </div>
         </div>

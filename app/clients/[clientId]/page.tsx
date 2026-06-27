@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { PageHeader } from "@/components/page-header";
 import { ClientHeader } from "@/components/client-header";
@@ -69,10 +70,11 @@ export default function ClientHubPage({
   params: Promise<{ clientId: string }>;
 }) {
   const { clientId } = use(params);
+  const clientRecordId = clientId as Id<"clients">;
   const { currentUser, isLoading } = useCurrentUser();
   const clientData = useQuery(
     api.clients.get,
-    currentUser ? { clientId: clientId as any } : "skip",
+    currentUser ? { clientId: clientRecordId } : "skip",
   );
   const toggleTask = useMutation(api.tasks.toggle);
   const createTask = useMutation(api.tasks.create);
@@ -85,15 +87,15 @@ export default function ClientHubPage({
   const updateBookingStatus = useMutation(api.bookings.updateStatus);
   const removeBooking = useMutation(api.bookings.remove);
   const removeClient = useMutation(api.clients.remove);
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [editingBooking, setEditingBooking] = useState<any>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [editClientOpen, setEditClientOpen] = useState(false);
-  const router = useRouter();
   type ClientData = NonNullable<typeof clientData>;
   type ClientBooking = ClientData["bookings"][number];
   type ClientTask = ClientData["tasks"][number];
   type ClientNote = ClientData["notes"][number];
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<ClientBooking | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [editClientOpen, setEditClientOpen] = useState(false);
+  const router = useRouter();
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     if (!clientData) return [];
@@ -236,7 +238,7 @@ export default function ClientHubPage({
                           "Are you sure you want to delete this client? This cannot be undone.",
                         )
                       ) {
-                        await removeClient({ clientId: clientId as any });
+                        await removeClient({ clientId: clientRecordId });
                         router.push("/clients");
                       }
                     }}
@@ -257,7 +259,7 @@ export default function ClientHubPage({
           location={client.location ?? "No location set"}
           status={client.status}
           joinDate={client.joinedOn}
-          avatar={(client as any).imageUrl ?? ""}
+          avatar=""
           onNameChange={(name) => updateClient({ clientId: client._id, name })}
         />
 
@@ -369,12 +371,12 @@ export default function ClientHubPage({
                           status={booking.status}
                           type={booking.type}
                           onStatusChange={(id, status) =>
-                            updateBookingStatus({ bookingId: id as any, status })
+                            updateBookingStatus({ bookingId: id as Id<"bookings">, status })
                           }
                           onEdit={() => setEditingBooking(booking)}
                           onDelete={async (id) => {
                             if (window.confirm("Delete this booking?")) {
-                              await removeBooking({ bookingId: id as any });
+                              await removeBooking({ bookingId: id as Id<"bookings"> });
                             }
                           }}
                         />
@@ -404,7 +406,7 @@ export default function ClientHubPage({
                       client: client.name,
                       dueDate: task.dueDate,
                     }))}
-                    onTaskToggle={(taskId) => toggleTask({ taskId: taskId as any })}
+                    onTaskToggle={(taskId) => toggleTask({ taskId: taskId as Id<"tasks"> })}
                     onAddTask={(title) =>
                       createTask({
                         title,
@@ -413,11 +415,11 @@ export default function ClientHubPage({
                       })
                     }
                     onTaskUpdate={(taskId, title) =>
-                       updateTask({ taskId: taskId as any, title })
+                       updateTask({ taskId: taskId as Id<"tasks">, title })
                     }
                     onTaskDelete={async (taskId) => {
                       if (!window.confirm("Delete this task?")) return;
-                       await removeTask({ taskId: taskId as any });
+                       await removeTask({ taskId: taskId as Id<"tasks"> });
                     }}
                   />
                 </CardContent>
@@ -559,7 +561,7 @@ export default function ClientHubPage({
         clients={[{ id: client._id, name: client.name }]}
         onSubmit={async (values) => {
           await createBooking({
-            clientId: (values.clientId ?? client._id) as any,
+            clientId: values.clientId ?? client._id,
             clientName: values.clientName ?? client.name,
             date: values.date,
             startTime: values.startTime,
@@ -614,8 +616,8 @@ export default function ClientHubPage({
         onSubmit={async (values) => {
           if (values.id) {
             await updateBooking({
-              bookingId: values.id as any,
-              clientId: values.clientId as any,
+              bookingId: values.id,
+              clientId: values.clientId,
               date: values.date,
               startTime: values.startTime,
               type: values.type,

@@ -215,8 +215,7 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
           </CommandGroup>
 
           <CommandGroup heading="Pipeline">
-
-            {(inquiryItems ?? []).map((inquiry: any) => (
+            {(inquiryItems ?? []).map((inquiry: Inquiry) => (
               <CommandItem
                 key={inquiry._id}
                 onSelect={() => openAndClose(() => router.push('/inquiries'))}
@@ -261,7 +260,7 @@ export function CommandPalette({ open: controlledOpen, onOpenChange }: CommandPa
         clients={(clients || []).map((client: Client) => ({ id: client._id, name: client.name }))}
         onSubmit={async (values) => {
           await createBooking({
-            clientId: values.clientId as any,
+            clientId: values.clientId,
             clientName: values.clientName,
             date: values.date,
             startTime: values.startTime,

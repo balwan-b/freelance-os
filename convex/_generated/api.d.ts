@@ -21,6 +21,7 @@ import type * as lib_scheduling from "../lib/scheduling.js";
 import type * as lib_timezone from "../lib/timezone.js";
 import type * as lib_utils from "../lib/utils.js";
 import type * as settings from "../settings.js";
+import type * as stripe from "../stripe.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
 
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "lib/timezone": typeof lib_timezone;
   "lib/utils": typeof lib_utils;
   settings: typeof settings;
+  stripe: typeof stripe;
   tasks: typeof tasks;
   users: typeof users;
 }>;

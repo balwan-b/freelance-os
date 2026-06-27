@@ -16,7 +16,6 @@ export default function CalendarPage() {
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null)
   const createBooking = useMutation(api.bookings.create)
   const updateBooking = useMutation(api.bookings.update)
-  const removeBooking = useMutation(api.bookings.remove)
   const bookings = useQuery(api.bookings.list, currentUser ? { status: undefined, date: undefined } : 'skip')
   const clients = useQuery(api.clients.list, currentUser ? { status: undefined, search: undefined } : 'skip')
   const settings = useQuery(api.settings.get, currentUser ? {} : 'skip')
@@ -121,15 +120,15 @@ export default function CalendarPage() {
           onSubmit={async (values) => {
             if (values.id) {
               await updateBooking({
-                bookingId: values.id as any,
-                clientId: values.clientId as any,
+                bookingId: values.id,
+                clientId: values.clientId,
                 date: values.date,
                 startTime: values.startTime,
                 type: values.type,
               })
             } else {
               await createBooking({
-                clientId: values.clientId as any,
+                clientId: values.clientId,
                 clientName: values.clientName,
                 date: values.date,
                 startTime: values.startTime,

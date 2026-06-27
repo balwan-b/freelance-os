@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import type { Id } from '@/convex/_generated/dataModel'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/page-header'
 import { BookingCard, BookingStatus } from '@/components/booking-card'
@@ -28,7 +29,6 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined)
   const [bookingOpen, setBookingOpen] = useState(false)
-  const [editingBooking, setEditingBooking] = useState<any>(null)
   const createBooking = useMutation(api.bookings.create)
   const updateBooking = useMutation(api.bookings.update)
   const updateBookingStatus = useMutation(api.bookings.updateStatus)
@@ -38,6 +38,9 @@ export default function BookingsPage() {
     date: dateFilter ? dateFilter.toISOString().split('T')[0] : undefined,
   } : 'skip')
   const clients = useQuery(api.clients.list, currentUser ? { status: undefined, search: undefined } : 'skip')
+  type BookingRecord = NonNullable<typeof bookings>[number]
+  type ClientRecord = NonNullable<typeof clients>[number]
+  const [editingBooking, setEditingBooking] = useState<BookingRecord | null>(null)
 
   const handleClearFilters = () => {
     setStatusFilter('all')
@@ -89,7 +92,7 @@ export default function BookingsPage() {
 
           {bookings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {bookings.map((booking: any) => (
+              {bookings.map((booking: BookingRecord) => (
                 <BookingCard
                   key={booking._id}
                   id={booking._id}
@@ -98,11 +101,11 @@ export default function BookingsPage() {
                   time={`${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`}
                   status={booking.status}
                   type={booking.type}
-                  onStatusChange={(id, status) => updateBookingStatus({ bookingId: id as any, status })}
+                  onStatusChange={(id, status) => updateBookingStatus({ bookingId: id as Id<'bookings'>, status })}
                   onEdit={() => setEditingBooking(booking)}
                   onDelete={async (id) => {
                     if (window.confirm('Are you sure you want to delete this booking?')) {
-                      await removeBooking({ bookingId: id as any })
+                      await removeBooking({ bookingId: id as Id<'bookings'> })
                     }
                   }}
                 />
@@ -142,7 +145,7 @@ export default function BookingsPage() {
           setBookingOpen(false)
           setEditingBooking(null)
         }}
-        clients={clients.map((client: any) => ({ id: client._id, name: client.name }))}
+        clients={clients.map((client: ClientRecord) => ({ id: client._id, name: client.name }))}
         initialData={editingBooking ? {
           id: editingBooking._id,
           clientId: editingBooking.clientId,
@@ -154,15 +157,15 @@ export default function BookingsPage() {
         onSubmit={async (values) => {
           if (values.id) {
             await updateBooking({
-              bookingId: values.id as any,
-              clientId: values.clientId as any,
+              bookingId: values.id,
+              clientId: values.clientId,
               date: values.date,
               startTime: values.startTime,
               type: values.type,
             })
           } else {
             await createBooking({
-              clientId: values.clientId as any,
+              clientId: values.clientId,
               clientName: values.clientName,
               date: values.date,
               startTime: values.startTime,

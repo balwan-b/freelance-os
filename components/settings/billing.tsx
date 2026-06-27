@@ -1,10 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useAction } from 'convex/react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Check, CreditCard, Zap } from 'lucide-react'
+import { api } from '@/convex/_generated/api'
 
 type BillingSubscription = {
   plan: 'free' | 'pro'
@@ -26,6 +29,9 @@ interface BillingSettingsProps {
 
 export function BillingSettings({ subscription, usage }: BillingSettingsProps) {
   const [loadingAction, setLoadingAction] = useState<'checkout' | 'portal' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const createCheckoutSession = useAction(api.stripe.createCheckoutSession)
+  const createPortalSession = useAction(api.stripe.createPortalSession)
   const planFeatures = [
     'Unlimited bookings',
     'Custom intake forms',
@@ -41,17 +47,12 @@ export function BillingSettings({ subscription, usage }: BillingSettingsProps) {
 
   async function handleCheckout() {
     setLoadingAction('checkout')
+    setError(null)
     try {
-      const response = await fetch('/api/stripe/checkout', { method: 'POST' })
-      const data = await response.json()
-      if (data?.url) {
-        window.location.href = data.url
-      } else {
-        alert(data?.error ?? 'Something went wrong. Please try again.')
-      }
+      const data = await createCheckoutSession({ origin: window.location.origin })
+      window.location.href = data.url
     } catch (err) {
-      console.error('Checkout error:', err)
-      alert('Failed to connect to checkout. Please check your internet connection.')
+      setError(err instanceof Error ? err.message : 'Failed to connect to checkout.')
     } finally {
       setLoadingAction(null)
     }
@@ -59,16 +60,15 @@ export function BillingSettings({ subscription, usage }: BillingSettingsProps) {
 
   async function handlePortal() {
     setLoadingAction('portal')
-    const response = await fetch('/api/stripe/portal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stripeCustomerId: subscription?.stripeCustomerId }),
-    })
-    const data = await response.json()
-    if (data?.url) {
+    setError(null)
+    try {
+      const data = await createPortalSession({ origin: window.location.origin })
       window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open the billing portal.')
+    } finally {
+      setLoadingAction(null)
     }
-    setLoadingAction(null)
   }
 
   return (
@@ -87,6 +87,11 @@ export function BillingSettings({ subscription, usage }: BillingSettingsProps) {
           </div>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Plan Features</h4>

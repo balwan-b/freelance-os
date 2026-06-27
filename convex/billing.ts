@@ -1,4 +1,4 @@
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { currentMonthKey, requireCurrentUser } from "./lib/auth";
 
@@ -31,6 +31,16 @@ export const summary = query({
       subscription,
       usage: usage ?? null,
     };
+  },
+});
+
+export const getSubscriptionByUserIdInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("subscriptions")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
   },
 });
 

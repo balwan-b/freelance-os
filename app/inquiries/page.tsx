@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { PageHeader } from '@/components/page-header'
 import { PipelineColumn } from '@/components/pipeline-column'
@@ -31,17 +31,7 @@ const stageTitle: Record<InquiryStage, string> = {
   rejected: 'Rejected',
 }
 
-type InquiryRecord = {
-  _id: string
-  name: string
-  service: string
-  receivedOn: string
-  tags: string[]
-  budget?: string
-  email?: string
-  phone?: string
-  notes?: string
-}
+type InquiryRecord = Doc<'inquiries'>
 
 function toInquiry(row: InquiryRecord): Inquiry {
   return {

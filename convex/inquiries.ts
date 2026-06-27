@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { requireCurrentUser } from "./lib/auth";
 import { recordActivity } from "./lib/activity";
@@ -30,7 +31,7 @@ export const list = query({
       ),
     );
 
-    const response: Record<(typeof stages)[number], unknown[]> = {
+    const response: Record<(typeof stages)[number], Doc<"inquiries">[]> = {
       new: [],
       contacted: [],
       qualified: [],
@@ -249,4 +250,3 @@ export const remove = mutation({
     await ctx.db.delete(args.inquiryId);
   },
 });
-

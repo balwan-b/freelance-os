@@ -63,7 +63,7 @@ export function BookingModal({
   initialData,
   onSubmit,
 }: BookingModalProps) {
-  const [clientValue, setClientValue] = useState(initialData?.clientId ?? '')
+  const [clientValue, setClientValue] = useState<string>(initialData?.clientId ?? '')
   const [clientName, setClientName] = useState(initialData?.clientName ?? '')
   const [dateValue, setDateValue] = useState(initialData?.date ?? '')
   const [timeValue, setTimeValue] = useState(initialData?.startTime ?? '')
@@ -116,7 +116,7 @@ export function BookingModal({
       setError(null)
       await onSubmit({
         id: initialData?.id,
-        clientId: effectiveClientValue || undefined,
+        clientId: (effectiveClientValue || defaultClientId || undefined) as Id<'clients'> | undefined,
         clientName: effectiveClientName.trim() || undefined,
         date: effectiveDateValue,
         startTime: effectiveTimeValue,
